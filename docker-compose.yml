@@ -9,6 +9,27 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wasel -d wasel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://wasel:wasel@postgres:5432/wasel
+      SESSION_SECRET: change-this-to-a-random-32-char-secret-in-production
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    profiles: ["app"]
 
 volumes:
   pgdata:
+  uploads:
