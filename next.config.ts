@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // السماح بتحميل صور Leaflet من unpkg
+  output: "standalone",
+  outputFileTracingIncludes: {
+    "/*": ["./drizzle/**/*"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "unpkg.com" },

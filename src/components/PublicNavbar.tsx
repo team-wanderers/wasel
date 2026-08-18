@@ -35,7 +35,7 @@ export default async function PublicNavbar() {
                 </Link>
               </li>
               <li>
-                <Link href="/lost/new" className="btn btn-primary btn-sm">
+                <Link href="/login" className="btn btn-primary btn-sm">
                   أبلِغ عن مفقود
                 </Link>
               </li>
