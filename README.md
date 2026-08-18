@@ -35,7 +35,7 @@ npm run dev
 
 `src/db/schema`
 
-- `auth.ts` — users, sessions, otp
+- `auth.ts` — users, sessions, accounts, verifications
 - `items.ts` — lost, found, media
 - `matching.ts` — matches, claims, pickup points, recoveries
 - `system.ts` — notifications, audit logs, settings
