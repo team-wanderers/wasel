@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
-import { logout } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
-export async function POST() {
-  await logout();
-  return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"));
+export async function POST(req: NextRequest) {
+  await auth.api.signOut({ headers: await headers() });
+  return NextResponse.redirect(new URL("/login", req.url), 303);
 }

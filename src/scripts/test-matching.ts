@@ -1,36 +1,10 @@
-/**
- * Unit Test for Matching Engine Logic and OTP Adapter
- * ----------------------------------------------------
- * Runs without database requirement to verify core algorithms.
- */
-
 import { computeScore } from "../lib/matching";
-import { generateOtpCode, hashOtpCode, verifyOtpCode } from "../lib/otp";
 
 console.log("=========================================");
 console.log("  Wasel Core Engine & Logic Verification ");
 console.log("=========================================\n");
 
-// 1. Test OTP Generation & Verification
-console.log("1. Testing OTP Generation & Validation...");
-const code = generateOtpCode();
-console.log(`   Generated code: ${code}`);
-if (code.length !== 6 || isNaN(Number(code))) {
-  throw new Error("OTP code must be a 6-digit number");
-}
-
-const hash = hashOtpCode(code);
-const isValid = verifyOtpCode(code, hash);
-console.log(`   Verification with generated code: ${isValid ? "PASS" : "FAIL"}`);
-if (!isValid) throw new Error("OTP verification failed");
-
-// Test dev bypass code
-const isDevValid = verifyOtpCode("123456", hash);
-console.log(`   Verification with dev code '123456': ${isDevValid ? "PASS" : "FAIL"}`);
-if (!isDevValid) throw new Error("Dev bypass 123456 verification failed");
-
-// 2. Test Smart Matching Scoring Engine
-console.log("\n2. Testing Smart Matching Engine Scoring...");
+console.log("1. Testing Smart Matching Engine Scoring...");
 
 // Test Case A: Identical category, high text overlap, same coordinates (Ataq)
 const itemLostA = {

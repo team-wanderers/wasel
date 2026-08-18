@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
-type Step = "phone" | "code";
+type Step = "email" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,17 +21,15 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/otp/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
+    const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
+      email,
+      type: "sign-in",
     });
 
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
+    if (sendError) {
+      setError(sendError.message ?? "حدث خطأ، حاول مرة أخرى");
     } else {
       setStep("code");
     }
@@ -40,17 +40,17 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/otp/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, code, name: name || undefined }),
+    const { error: signInError } = await authClient.signIn.emailOtp({
+      email,
+      otp: code,
+      name: name || undefined,
+      phone: phone || undefined,
     });
 
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "رمز غير صحيح");
+    if (signInError) {
+      setError(signInError.message ?? "رمز غير صحيح");
     } else {
       router.push("/dashboard");
       router.refresh();
@@ -64,13 +64,13 @@ export default function LoginPage() {
           واصل
         </h1>
         <p style={{ color: "var(--color-text-secondary)", marginTop: "var(--space-2)" }}>
-          {step === "phone" ? "أدخل رقم هاتفك للدخول" : "أدخل رمز التحقق"}
+          {step === "email" ? "أدخل بريدك الإلكتروني للدخول" : "أدخل رمز التحقق"}
         </p>
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: "var(--space-4)" }}>{error}</div>}
 
-      {step === "phone" ? (
+      {step === "email" ? (
         <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           <div className="field">
             <label className="label" htmlFor="name">الاسم (اختياري للمستخدمين الجدد)</label>
@@ -84,7 +84,20 @@ export default function LoginPage() {
             />
           </div>
           <div className="field">
-            <label className="label" htmlFor="phone">رقم الهاتف *</label>
+            <label className="label" htmlFor="email">البريد الإلكتروني *</label>
+            <input
+              id="email"
+              type="email"
+              className="input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              dir="ltr"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="phone">رقم الهاتف (للتواصل، اختياري)</label>
             <input
               id="phone"
               type="tel"
@@ -92,7 +105,6 @@ export default function LoginPage() {
               placeholder="07XXXXXXXX"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              required
               dir="ltr"
             />
           </div>
@@ -103,7 +115,7 @@ export default function LoginPage() {
       ) : (
         <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", textAlign: "center" }}>
-            تم إرسال رمز التحقق إلى <strong dir="ltr">{phone}</strong>
+            تم إرسال رمز التحقق إلى <strong dir="ltr">{email}</strong>
           </p>
           <div className="field">
             <label className="label" htmlFor="code">رمز التحقق (6 أرقام)</label>
@@ -126,9 +138,9 @@ export default function LoginPage() {
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => { setStep("phone"); setCode(""); setError(""); }}
+            onClick={() => { setStep("email"); setCode(""); setError(""); }}
           >
-            ← تغيير الرقم
+            تغيير البريد
           </button>
         </form>
       )}

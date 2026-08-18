@@ -1,121 +1,89 @@
-/**
- * Auth Library
- * ------------
- * - إدارة الجلسات عبر PostgreSQL (لا JWT)
- * - Guards: requireUser / requireAdmin
- * - Cookie: session=<raw_token>; HttpOnly; SameSite=Lax
- */
-
-import crypto from "crypto";
-import { cookies } from "next/headers";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { nextCookies } from "better-auth/next-js";
+import { emailOTP } from "better-auth/plugins";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { sessions, users } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import * as schema from "@/db/schema";
 import { env } from "./env";
+import { sendOtpEmail } from "./mail";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+export const auth = betterAuth({
+  appName: "واصل",
+  baseURL: env.BETTER_AUTH_URL,
+  secret: env.SESSION_SECRET,
+  trustedOrigins: [env.BETTER_AUTH_URL],
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    usePlural: true,
+    schema,
+  }),
+  emailAndPassword: { enabled: false },
+  user: {
+    additionalFields: {
+      role: {
+        type: ["user", "admin"],
+        required: true,
+        defaultValue: "user",
+        input: false,
+      },
+      phone: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+  advanced: {
+    database: {
+      generateId: (options) => {
+        if (options.model === "user" || options.model === "users") {
+          return false;
+        }
+        return crypto.randomUUID();
+      },
+    },
+  },
+  plugins: [
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 600,
+      storeOTP: "hashed",
+      overrideDefaultEmailVerification: true,
+      async sendVerificationOTP({ email, otp }) {
+        await sendOtpEmail(email, otp);
+      },
+    }),
+    nextCookies(),
+  ],
+});
 
 export type SessionUser = {
   id: string;
   name: string;
-  phone: string;
+  email: string;
+  phone: string | null;
   role: "user" | "admin";
 };
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const COOKIE_NAME = "session";
-const SESSION_DURATION_DAYS = 30;
-
-// ── Token Helpers ──────────────────────────────────────────────────────────
-
-export function generateSessionToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-export function hashSessionToken(token: string): string {
-  return crypto
-    .createHmac("sha256", env.SESSION_SECRET)
-    .update(token)
-    .digest("hex");
-}
-
-export function sessionExpiresAt(): Date {
-  return new Date(
-    Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000,
-  );
-}
-
-// ── Session Management ─────────────────────────────────────────────────────
-
-/** ينشئ جلسة جديدة في قاعدة البيانات ويضع الـ cookie */
-export async function createSession(userId: string): Promise<void> {
-  const rawToken = generateSessionToken();
-  const tokenHash = hashSessionToken(rawToken);
-  const expiresAt = sessionExpiresAt();
-
-  await db.insert(sessions).values({ userId, tokenHash, expiresAt });
-
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, rawToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: env.NODE_ENV === "production",
-    expires: expiresAt,
-    path: "/",
-  });
-}
-
-/** يجلب المستخدم من الجلسة الحالية (null إذا لم تكن موجودة/منتهية) */
 export async function getSession(): Promise<SessionUser | null> {
-  const cookieStore = await cookies();
-  const rawToken = cookieStore.get(COOKIE_NAME)?.value;
-  if (!rawToken) return null;
-
-  const tokenHash = hashSessionToken(rawToken);
-  const now = new Date();
-
-  const result = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      phone: users.phone,
-      role: users.role,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(
-      and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)),
-    )
-    .limit(1);
-
-  return result[0] ?? null;
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return null;
+  return {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    phone: session.user.phone ?? null,
+    role: session.user.role ?? "user",
+  };
 }
 
-/** يحذف الجلسة من قاعدة البيانات ويُزيل الـ cookie */
-export async function logout(): Promise<void> {
-  const cookieStore = await cookies();
-  const rawToken = cookieStore.get(COOKIE_NAME)?.value;
-
-  if (rawToken) {
-    const tokenHash = hashSessionToken(rawToken);
-    await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
-  }
-
-  cookieStore.delete(COOKIE_NAME);
-}
-
-// ── Route Guards ───────────────────────────────────────────────────────────
-
-/** يتحقق من وجود مستخدم مسجَّل — يُعيد redirect إلى /login عند الفشل */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSession();
   if (!user) redirect("/login");
   return user;
 }
 
-/** يتحقق من كون المستخدم admin — يُعيد redirect عند الفشل */
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await getSession();
   if (!user) redirect("/login");
