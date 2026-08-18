@@ -1,3 +1,15 @@
+# Wasel
+
+Lost/found app. Next.js 16 + Drizzle + Postgres. Node >= 22. Code in `src/`.
+
+Pick an issue, branch `feat/<n>-<slug>` or `fix/<n>-<slug>`, PR `Closes #n`. See `CONTRIBUTING.md`.
+
+`npm run lint` and `npm run typecheck` must pass. No comments unless asked.
+
+Schema in `src/db/schema`. Generate a drizzle migration; do not add DBs or services.
+
+Login is email OTP only. Never use emoji as icons.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
