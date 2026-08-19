@@ -2,10 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-// إحداثيات مدينة عتق الافتراضية
 const ATAQ_LAT = 14.5372;
 const ATAQ_LNG = 46.8319;
-const DEFAULT_ZOOM = 13;
+const DEFAULT_ZOOM = 14;
 
 interface LocationPickerProps {
   lat: number | null;
@@ -14,18 +13,34 @@ interface LocationPickerProps {
 }
 
 export default function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstanceRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !mapRef.current) return;
+    let isCancelled = false;
 
-    // تحميل Leaflet ديناميكياً
-    import("leaflet").then((L) => {
-      // إصلاح أيقونات Leaflet مع Next.js
+    async function initMap() {
+      if (typeof window === "undefined" || !containerRef.current) return;
+
+      const L = await import("leaflet");
+
+      if (isCancelled || !containerRef.current) return;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      const el = containerRef.current as HTMLElement & { _leaflet_id?: number | null };
+      if (el._leaflet_id) {
+        delete el._leaflet_id;
+      }
+
+      if (isCancelled) return;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -34,16 +49,21 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      if (mapInstanceRef.current) return; // لا تُعيد التهيئة
-
       const initialLat = lat ?? ATAQ_LAT;
       const initialLng = lng ?? ATAQ_LNG;
 
-      const map = L.map(mapRef.current!).setView([initialLat, initialLng], DEFAULT_ZOOM);
+      const map = L.map(containerRef.current, {
+        zoomControl: true,
+        dragging: true,
+      }).setView([initialLat, initialLng], DEFAULT_ZOOM);
+
       mapInstanceRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
+      // طبقة خرائط سريعة وعالية التوافق
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: "© OpenStreetMap contributors, © CARTO",
+        subdomains: "abcd",
+        maxZoom: 20,
       }).addTo(map);
 
       const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
@@ -61,16 +81,26 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         onChange(e.latlng.lat, e.latlng.lng);
       });
 
-      if (lat && lng) onChange(lat, lng);
-    });
+      if (lat && lng) {
+        onChange(lat, lng);
+      }
+
+      setTimeout(() => {
+        if (!isCancelled && mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 300);
+    }
+
+    initMap();
 
     return () => {
+      isCancelled = true;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
-    // تشغيل مرة واحدة عند التركيب
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -81,8 +111,9 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       />
       <div
-        ref={mapRef}
+        ref={containerRef}
         className="map-container"
+        style={{ minHeight: "320px", width: "100%", borderRadius: "var(--radius-md)" }}
         aria-label="خريطة تحديد الموقع"
       />
       {lat && lng && (

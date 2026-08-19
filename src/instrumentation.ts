@@ -1,5 +1,3 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "edge") return;
-  const { runMigrations } = await import("./lib/migrate");
-  await runMigrations();
+  // تم تطبيق الترحيل يدوياً عبر drizzle-kit push
 }

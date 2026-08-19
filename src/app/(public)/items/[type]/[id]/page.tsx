@@ -4,16 +4,7 @@ import { lostItems, foundItems, itemMedia } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const MapViewer = dynamic(() => import("@/components/MapViewer"), {
-  ssr: false,
-  loading: () => (
-    <div className="map-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}>
-      جارٍ تحميل الخريطة...
-    </div>
-  ),
-});
+import MapViewer from "@/components/MapViewer";
 
 const categoryLabels: Record<string, string> = {
   documents: "وثائق", electronics: "إلكترونيات", keys: "مفاتيح",
@@ -37,7 +28,6 @@ export default async function ItemDetailPage({ params }: Params) {
 
   const session = await getSession();
 
-  // جلب البيانات — secret_details محجوب دائماً في الواجهة العامة
   let item: {
     id: string; title: string; description: string; category: string;
     status: string; lat: number | null; lng: number | null;
@@ -91,7 +81,6 @@ export default async function ItemDetailPage({ params }: Params) {
 
   return (
     <div className="container" style={{ maxWidth: "800px", padding: "var(--space-8) var(--space-4)" }}>
-      {/* Breadcrumb */}
       <nav style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-6)" }}>
         <Link href="/search" style={{ color: "var(--color-primary)" }}>البحث</Link>
         {" › "}
@@ -101,7 +90,6 @@ export default async function ItemDetailPage({ params }: Params) {
       </nav>
 
       <div className="card" style={{ marginBottom: "var(--space-6)" }}>
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--space-6)", flexWrap: "wrap", gap: "var(--space-3)" }}>
           <div>
             <div style={{ display: "flex", gap: "var(--space-3)", marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
@@ -127,7 +115,6 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         </div>
 
-        {/* Description */}
         <div style={{ marginBottom: "var(--space-6)" }}>
           <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-2)", color: "var(--color-text-secondary)" }}>
             الوصف
@@ -135,7 +122,6 @@ export default async function ItemDetailPage({ params }: Params) {
           <p style={{ lineHeight: 1.8, color: "var(--color-text-primary)" }}>{item.description}</p>
         </div>
 
-        {/* Meta */}
         <div style={{ display: "flex", gap: "var(--space-6)", flexWrap: "wrap", marginBottom: "var(--space-6)", padding: "var(--space-4)", background: "var(--color-bg-secondary)", borderRadius: "var(--radius-md)" }}>
           <div>
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-1)" }}>{dateLabel}</div>
@@ -151,7 +137,6 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         </div>
 
-        {/* Images */}
         {media.length > 0 && (
           <div style={{ marginBottom: "var(--space-6)" }}>
             <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
@@ -159,7 +144,6 @@ export default async function ItemDetailPage({ params }: Params) {
             </h2>
             <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
               {media.map((m) => (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={m.id}
                   src={`/${m.path}`}
@@ -174,7 +158,6 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         )}
 
-        {/* Map */}
         {item.lat && item.lng && (
           <div style={{ marginBottom: "var(--space-6)" }}>
             <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
@@ -184,7 +167,6 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         )}
 
-        {/* CTA */}
         <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-6)", display: "flex", gap: "var(--space-4)", flexWrap: "wrap" }}>
           {isOwner ? (
             <Link href={`/dashboard/${type}/${item.id}/edit`} className="btn btn-outline">
@@ -192,10 +174,7 @@ export default async function ItemDetailPage({ params }: Params) {
             </Link>
           ) : item.status === "open" ? (
             session ? (
-              <Link
-                href={`/dashboard/matches`}
-                className="btn btn-primary"
-              >
+              <Link href={`/dashboard/matches`} className="btn btn-primary">
                 {type === "lost" ? "هذا ملكي — إثبات الملكية" : "وجدت صاحب هذا الغرض"}
               </Link>
             ) : (
