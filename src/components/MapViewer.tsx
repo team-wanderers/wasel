@@ -23,13 +23,11 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
       if (isCancelled || !containerRef.current) return;
 
-      // تنظيف أي نسخة خريطة سابقة
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
 
-      // تصفير معرّف Leaflet الداخلي لتجنب تعارضات React Strict Mode
       const el = containerRef.current as HTMLElement & { _leaflet_id?: number | null };
       if (el._leaflet_id) {
         delete el._leaflet_id;
@@ -37,7 +35,6 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
       if (isCancelled) return;
 
-      // ضبط مسارات الأيقونات
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -53,7 +50,6 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
       mapInstanceRef.current = map;
 
-      // طبقة خرائط CartoDB السريعة
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
         attribution: "© OpenStreetMap contributors, © CARTO",
         subdomains: "abcd",
@@ -65,7 +61,6 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
         .bindPopup("📍 الموقع التقريبي")
         .openPopup();
 
-      // إعادة احتساب أبعاد الحاوية لتحميل صور الخريطة فوراً
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
