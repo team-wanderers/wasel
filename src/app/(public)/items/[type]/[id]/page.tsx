@@ -4,16 +4,7 @@ import { lostItems, foundItems, itemMedia } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const MapViewer = dynamic(() => import("@/components/MapViewer"), {
-  ssr: false,
-  loading: () => (
-    <div className="map-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)" }}>
-      جارٍ تحميل الخريطة...
-    </div>
-  ),
-});
+import MapViewer from "@/components/MapViewer";
 
 const categoryLabels: Record<string, string> = {
   documents: "وثائق", electronics: "إلكترونيات", keys: "مفاتيح",
