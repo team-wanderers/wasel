@@ -144,6 +144,7 @@ export default async function ItemDetailPage({ params }: Params) {
             </h2>
             <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
               {media.map((m) => (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={m.id}
                   src={`/${m.path}`}
