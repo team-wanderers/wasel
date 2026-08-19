@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import ImageUploader from "@/components/ImageUploader";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -36,6 +37,7 @@ export default function NewLostItemPage() {
   const [lng, setLng] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -66,9 +68,38 @@ export default function NewLostItemPage() {
     if (!res.ok) {
       setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
     } else {
-      router.push("/dashboard/lost");
-      router.refresh();
+      setCreatedId(data.id);
     }
+  }
+
+  function handleDone() {
+    router.push("/dashboard/lost");
+    router.refresh();
+  }
+
+  if (createdId) {
+    return (
+      <div style={{ maxWidth: "680px" }}>
+        <div className="card" style={{ textAlign: "center", padding: "var(--space-8)", marginBottom: "var(--space-6)" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-4)" }}>✅</div>
+          <h2 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
+            تم نشر البلاغ بنجاح
+          </h2>
+          <p style={{ color: "var(--color-text-secondary)", marginBottom: "var(--space-6)" }}>
+            يمكنك إضافة صور للمساعدة في التعرف على المفقود (اختياري)
+          </p>
+          <div style={{ textAlign: "start", marginBottom: "var(--space-6)" }}>
+            <label className="label" style={{ marginBottom: "var(--space-3)", display: "block" }}>
+              صور المفقود (اختياري)
+            </label>
+            <ImageUploader lostItemId={createdId} />
+          </div>
+          <button onClick={handleDone} className="btn btn-primary" style={{ width: "100%" }}>
+            انتهيت — عرض مفقوداتي
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -156,7 +187,7 @@ export default function NewLostItemPage() {
         {/* التفاصيل السرية */}
         <div className="field">
           <label className="label" htmlFor="secretDetails">
-            🔒 تفاصيل سرية لإثبات الملكية (اختياري)
+            تفاصيل سرية لإثبات الملكية (اختياري)
           </label>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
             معلومة لا يعرفها إلا أنت — لن تُشارَك مع أي شخص آخر
