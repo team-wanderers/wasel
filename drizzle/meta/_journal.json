@@ -15,6 +15,20 @@
       "when": 1787049000000,
       "tag": "0001_better_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787287172261,
+      "tag": "0002_gigantic_vance_astro",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787289498740,
+      "tag": "0003_careful_sunfire",
+      "breakpoints": true
     }
   ]
 }
