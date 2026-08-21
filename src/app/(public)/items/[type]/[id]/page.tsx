@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { lostItems, foundItems, itemMedia } from "@/db/schema";
+import { lostItems, foundItems, itemMedia, matches } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import MapViewer from "@/components/MapViewer";
+import ClaimSection from "@/components/ClaimSection";
 
 const categoryLabels: Record<string, string> = {
   documents: "وثائق", electronics: "إلكترونيات", keys: "مفاتيح",
@@ -74,17 +75,33 @@ export default async function ItemDetailPage({ params }: Params) {
       .where(eq(itemMedia.foundItemId, id));
   }
 
+  let counterpartId: string | null = null;
+  if (session && !isOwner(session.id, item.userId)) {
+    const [match] = await db
+      .select({ lostItemId: matches.lostItemId, foundItemId: matches.foundItemId })
+      .from(matches)
+      .where(
+        type === "lost"
+          ? eq(matches.lostItemId, id)
+          : eq(matches.foundItemId, id),
+      )
+      .limit(1);
+    if (match) {
+      counterpartId = type === "lost" ? match.foundItemId : match.lostItemId;
+    }
+  }
+
   const dateLabel = type === "lost" ? "تاريخ الفقدان" : "تاريخ الإيجاد";
   const dateValue = type === "lost" ? item.lostAt : item.foundAt;
   const statusInfo = statusLabels[item.status] ?? { label: item.status, className: "" };
-  const isOwner = session?.id === item.userId;
+  const owner = isOwner(session?.id ?? "", item.userId);
 
   return (
     <div className="container" style={{ maxWidth: "800px", padding: "var(--space-8) var(--space-4)" }}>
       <nav style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-6)" }}>
         <Link href="/search" style={{ color: "var(--color-primary)" }}>البحث</Link>
         {" › "}
-        <span>{type === "lost" ? "مفقود" : "موجود"}</span>
+        <span>{type === "lost" ? "مفقود" : "معثور عليه"}</span>
         {" › "}
         <span>{item.title}</span>
       </nav>
@@ -104,7 +121,7 @@ export default async function ItemDetailPage({ params }: Params) {
                   fontWeight: 600,
                 }}
               >
-                {type === "lost" ? "مفقود" : "موجود"}
+                {type === "lost" ? "مفقود" : "معثور عليه"}
               </span>
               <span className={`badge ${statusInfo.className}`}>{statusInfo.label}</span>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", alignSelf: "center" }}>
@@ -168,26 +185,38 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         )}
 
+        {!owner && session && item.status === "open" && (
+          <div style={{ marginBottom: "var(--space-6)" }}>
+            <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
+              {type === "found" ? "هل هذا الغرض ملكك؟" : "هل عثرت على هذا الغرض؟"}
+            </h2>
+            <ClaimSection itemType={type} itemId={id} counterpartId={counterpartId} />
+          </div>
+        )}
+
+        {!session && item.status === "open" && (
+          <div style={{ marginBottom: "var(--space-6)", padding: "var(--space-4)", background: "var(--color-bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)" }}>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+              {type === "found"
+                ? "هل هذا الغرض ملكك؟ سجّل دخولك لتقديم إثبات الملكية والتواصل مع الملتقط."
+                : "هل عثرت على هذا الغرض؟ سجّل دخولك لتقديم البلاغ والتواصل مع صاحبه."}
+            </span>
+            <Link href="/login" className="btn btn-primary btn-sm">
+              تسجيل الدخول
+            </Link>
+          </div>
+        )}
+
         <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-6)", display: "flex", gap: "var(--space-4)", flexWrap: "wrap" }}>
-          {isOwner ? (
+          {owner ? (
             <Link href={`/dashboard/${type}/${item.id}/edit`} className="btn btn-outline">
               تعديل البلاغ
             </Link>
-          ) : item.status === "open" ? (
-            session ? (
-              <Link href={`/dashboard/matches`} className="btn btn-primary">
-                {type === "lost" ? "هذا ملكي — إثبات الملكية" : "وجدت صاحب هذا الغرض"}
-              </Link>
-            ) : (
-              <Link href="/login" className="btn btn-primary">
-                سجّل دخولك للتواصل مع صاحب البلاغ
-              </Link>
-            )
-          ) : (
+          ) : item.status !== "open" ? (
             <span className="badge" style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--font-size-sm)" }}>
               هذا البلاغ لم يعد متاحاً
             </span>
-          )}
+          ) : null}
           <Link href="/search" className="btn btn-ghost">
             ← العودة للبحث
           </Link>
@@ -195,4 +224,8 @@ export default async function ItemDetailPage({ params }: Params) {
       </div>
     </div>
   );
+}
+
+function isOwner(sessionId: string, itemUserId: string): boolean {
+  return !!sessionId && sessionId === itemUserId;
 }

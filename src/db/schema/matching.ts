@@ -64,15 +64,15 @@ export const claims = pgTable(
       onDelete: "set null",
     }),
     lostItemId: uuid("lost_item_id")
-      .notNull()
       .references(() => lostItems.id, { onDelete: "cascade" }),
     foundItemId: uuid("found_item_id")
-      .notNull()
       .references(() => foundItems.id, { onDelete: "cascade" }),
     claimantId: uuid("claimant_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     status: claimStatusEnum("status").notNull().default("pending"),
+    proofDescription: text("proof_description"),
+    proofMediaUrl: text("proof_media_url"),
     verificationNotes: text("verification_notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -84,6 +84,8 @@ export const claims = pgTable(
   (t) => [
     index("claims_claimant_id_idx").on(t.claimantId),
     index("claims_status_idx").on(t.status),
+    index("claims_lost_item_id_idx").on(t.lostItemId),
+    index("claims_found_item_id_idx").on(t.foundItemId),
   ],
 );
 
