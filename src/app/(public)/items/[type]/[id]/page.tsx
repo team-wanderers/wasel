@@ -185,6 +185,18 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         )}
 
+        {item.status === "claimed" && (
+          <div style={{ marginBottom: "var(--space-6)", padding: "var(--space-4)", background: "hsl(38,90%,94%)", border: "1px solid hsl(38,90%,75%)", borderRadius: "var(--radius-md)", color: "hsl(30,80%,25%)", fontSize: "var(--font-size-sm)", fontWeight: 500 }}>
+            تم إثبات ملكية هذا الغرض وهو قيد إجراءات التسليم والاسترداد. لا يمكن تقديم مطالبات جديدة عليه حالياً.
+          </div>
+        )}
+
+        {(item.status === "recovered" || item.status === "closed") && (
+          <div style={{ marginBottom: "var(--space-6)", padding: "var(--space-4)", background: "var(--color-bg-secondary)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
+            تم تسليم واسترجاع هذا الغرض وإغلاق البلاغ بنجاح.
+          </div>
+        )}
+
         {!owner && session && item.status === "open" && (
           <div style={{ marginBottom: "var(--space-6)" }}>
             <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
@@ -212,6 +224,14 @@ export default async function ItemDetailPage({ params }: Params) {
             <Link href={`/dashboard/${type}/${item.id}/edit`} className="btn btn-outline">
               تعديل البلاغ
             </Link>
+          ) : item.status === "claimed" ? (
+            <span className="badge" style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--font-size-sm)", background: "hsl(38,90%,92%)", color: "hsl(30,80%,30%)" }}>
+              قيد إجراءات الاسترداد
+            </span>
+          ) : item.status === "recovered" || item.status === "closed" ? (
+            <span className="badge" style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--font-size-sm)", background: "var(--color-success-light)", color: "hsl(142,60%,25%)" }}>
+              مسترجع ومغلق
+            </span>
           ) : item.status !== "open" ? (
             <span className="badge" style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--font-size-sm)" }}>
               هذا البلاغ لم يعد متاحاً

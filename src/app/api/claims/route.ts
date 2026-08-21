@@ -80,9 +80,15 @@ export async function POST(req: NextRequest) {
       if (!foundItem) {
         return NextResponse.json({ error: "الغرض المعثور عليه غير موجود" }, { status: 404 });
       }
-      if (foundItem.status === "recovered" || foundItem.status === "closed") {
-        return NextResponse.json({ error: "هذا البلاغ لم يعد متاحاً للمطالبة" }, { status: 409 });
+
+      // التحقق من أن حالة الغرض ما زالت مفتوحة
+      if (foundItem.status !== "open") {
+        return NextResponse.json(
+          { error: "تم إثبات ملكية هذا الغرض مسبقاً وهو قيد إجراءات الاستلام" },
+          { status: 400 }
+        );
       }
+
       secretDetails = foundItem.secretDetails;
       targetUserId = foundItem.userId;
     } else {
@@ -103,9 +109,15 @@ export async function POST(req: NextRequest) {
       if (!lostItem) {
         return NextResponse.json({ error: "الغرض المفقود غير موجود" }, { status: 404 });
       }
-      if (lostItem.status === "recovered" || lostItem.status === "closed") {
-        return NextResponse.json({ error: "هذا البلاغ لم يعد متاحاً للمطالبة" }, { status: 409 });
+
+      // التحقق من أن حالة الغرض ما زالت مفتوحة
+      if (lostItem.status !== "open") {
+        return NextResponse.json(
+          { error: "تم إثبات ملكية هذا الغرض مسبقاً وهو قيد إجراءات الاستلام" },
+          { status: 400 }
+        );
       }
+
       secretDetails = lostItem.secretDetails;
       targetUserId = lostItem.userId;
     }
@@ -113,6 +125,25 @@ export async function POST(req: NextRequest) {
     // المطالِب لا يجوز أن يكون صاحب الغرض نفسه
     if (targetUserId === session.id) {
       return NextResponse.json({ error: "لا يمكنك المطالبة بغرض أنت نشرته" }, { status: 409 });
+    }
+
+    // التحقق مما إذا كان الغرض يحتوي مسبقاً على مطالبة موثقة
+    const [alreadyVerifiedClaim] = await db
+      .select({ id: claims.id })
+      .from(claims)
+      .where(
+        and(
+          type === "found" ? eq(claims.foundItemId, targetId) : eq(claims.lostItemId, targetId),
+          eq(claims.status, "verified")
+        )
+      )
+      .limit(1);
+
+    if (alreadyVerifiedClaim) {
+      return NextResponse.json(
+        { error: "تم إثبات ملكية هذا الغرض مسبقاً وهو قيد إجراءات الاستلام" },
+        { status: 400 }
+      );
     }
 
     // منع تعدد المطالبات من نفس الشخص على نفس الغرض
@@ -160,6 +191,22 @@ export async function POST(req: NextRequest) {
         verificationNotes: verificationNotes ?? null,
       })
       .returning();
+
+    // عند نجاح التحقق التلقائي: قفل حالة الغرض من open إلى claimed
+    if (status === "verified") {
+      const now = new Date();
+      if (type === "found") {
+        await db
+          .update(foundItems)
+          .set({ status: "claimed", updatedAt: now })
+          .where(eq(foundItems.id, targetId));
+      } else {
+        await db
+          .update(lostItems)
+          .set({ status: "claimed", updatedAt: now })
+          .where(eq(lostItems.id, targetId));
+      }
+    }
 
     return NextResponse.json(
       {
