@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import ImageUploader from "@/components/ImageUploader";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -36,6 +37,7 @@ export default function EditLostItemPage() {
   const [form, setForm] = useState({ title: "", description: "", category: "", lostAt: "", secretDetails: "", status: "open" });
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ path: string; id: string; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +57,15 @@ export default function EditLostItemPage() {
         });
         if (data.lat) setLat(data.lat);
         if (data.lng) setLng(data.lng);
+        if (Array.isArray(data.images)) {
+          setUploadedImages(
+            data.images.map((img: { id: string; path: string }) => ({
+              id: img.id,
+              path: img.path,
+              previewUrl: img.path.startsWith("/") ? img.path : `/${img.path}`,
+            }))
+          );
+        }
         setFetching(false);
       })
       .catch(() => { setError("تعذَّر تحميل البيانات"); setFetching(false); });
@@ -71,7 +82,13 @@ export default function EditLostItemPage() {
     const res = await fetch(`/api/lost/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, lat, lng, lostAt: form.lostAt ? new Date(form.lostAt).toISOString() : null }),
+      body: JSON.stringify({
+        ...form,
+        lat,
+        lng,
+        lostAt: form.lostAt ? new Date(form.lostAt).toISOString() : null,
+        images: uploadedImages.map((img) => ({ path: img.path })),
+      }),
     });
 
     const data = await res.json();
@@ -148,6 +165,16 @@ export default function EditLostItemPage() {
         <div className="field">
           <label className="label" htmlFor="description">الوصف *</label>
           <textarea id="description" name="description" className="textarea" value={form.description} onChange={handleChange} required rows={4} />
+        </div>
+
+        <div className="field">
+          <label className="label">صور المفقود (اختياري)</label>
+          <ImageUploader
+            key={`lost-uploader-${id}`}
+            lostItemId={id}
+            initialFiles={uploadedImages}
+            onUpload={setUploadedImages}
+          />
         </div>
 
         <div className="field">

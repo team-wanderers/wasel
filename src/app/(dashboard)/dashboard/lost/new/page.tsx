@@ -35,9 +35,9 @@ export default function NewLostItemPage() {
   });
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ path: string; id: string; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [createdId, setCreatedId] = useState<string | null>(null);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -59,6 +59,7 @@ export default function NewLostItemPage() {
         lat,
         lng,
         lostAt: form.lostAt ? new Date(form.lostAt).toISOString() : null,
+        images: uploadedImages.map((img) => ({ path: img.path })),
       }),
     });
 
@@ -68,38 +69,9 @@ export default function NewLostItemPage() {
     if (!res.ok) {
       setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
     } else {
-      setCreatedId(data.id);
+      router.push("/dashboard/lost");
+      router.refresh();
     }
-  }
-
-  function handleDone() {
-    router.push("/dashboard/lost");
-    router.refresh();
-  }
-
-  if (createdId) {
-    return (
-      <div style={{ maxWidth: "680px" }}>
-        <div className="card" style={{ textAlign: "center", padding: "var(--space-8)", marginBottom: "var(--space-6)" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-4)" }}>✅</div>
-          <h2 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
-            تم نشر البلاغ بنجاح
-          </h2>
-          <p style={{ color: "var(--color-text-secondary)", marginBottom: "var(--space-6)" }}>
-            يمكنك إضافة صور للمساعدة في التعرف على المفقود (اختياري)
-          </p>
-          <div style={{ textAlign: "start", marginBottom: "var(--space-6)" }}>
-            <label className="label" style={{ marginBottom: "var(--space-3)", display: "block" }}>
-              صور المفقود (اختياري)
-            </label>
-            <ImageUploader lostItemId={createdId} />
-          </div>
-          <button onClick={handleDone} className="btn btn-primary" style={{ width: "100%" }}>
-            انتهيت — عرض مفقوداتي
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -119,9 +91,14 @@ export default function NewLostItemPage() {
         <div className="field">
           <label className="label" htmlFor="title">العنوان *</label>
           <input
-            id="title" name="title" type="text" className="input"
-            placeholder="مثال: بطاقة هوية وطنية باسم محمد علي"
-            value={form.title} onChange={handleChange} required
+            id="title"
+            name="title"
+            type="text"
+            className="input"
+            placeholder="مثال: بطاقة شخصية باسم أحمد محمد"
+            value={form.title}
+            onChange={handleChange}
+            required
           />
         </div>
 
@@ -133,18 +110,24 @@ export default function NewLostItemPage() {
               <label
                 key={cat.value}
                 style={{
-                  display: "flex", alignItems: "center", gap: "var(--space-2)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
                   padding: "var(--space-2) var(--space-4)",
                   border: `1.5px solid ${form.category === cat.value ? "var(--color-primary)" : "var(--color-border)"}`,
                   borderRadius: "var(--radius-md)",
                   background: form.category === cat.value ? "var(--color-primary-light)" : "transparent",
-                  cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 500,
+                  cursor: "pointer",
+                  fontSize: "var(--font-size-sm)",
+                  fontWeight: 500,
                   color: form.category === cat.value ? "var(--color-primary)" : "var(--color-text-secondary)",
                   transition: "all 150ms",
                 }}
               >
                 <input
-                  type="radio" name="category" value={cat.value}
+                  type="radio"
+                  name="category"
+                  value={cat.value}
                   checked={form.category === cat.value}
                   onChange={handleChange}
                   style={{ display: "none" }}
@@ -159,51 +142,83 @@ export default function NewLostItemPage() {
         <div className="field">
           <label className="label" htmlFor="description">الوصف *</label>
           <textarea
-            id="description" name="description" className="textarea"
-            placeholder="اذكر تفاصيل واضحة تساعد في التعرف على الغرض..."
-            value={form.description} onChange={handleChange} required rows={4}
+            id="description"
+            name="description"
+            className="textarea"
+            placeholder="صف الغرض المفقود بدقة — اللون، الحجم، أي علامات فارقة..."
+            value={form.description}
+            onChange={handleChange}
+            required
+            rows={4}
           />
+        </div>
+
+        {/* صور المفقود */}
+        <div className="field">
+          <label className="label">صور المفقود (اختياري)</label>
+          <ImageUploader onUpload={setUploadedImages} />
         </div>
 
         {/* تاريخ الفقدان */}
         <div className="field">
           <label className="label" htmlFor="lostAt">تاريخ الفقدان (اختياري)</label>
           <input
-            id="lostAt" name="lostAt" type="datetime-local" className="input"
-            value={form.lostAt} onChange={handleChange}
+            id="lostAt"
+            name="lostAt"
+            type="datetime-local"
+            className="input"
+            value={form.lostAt}
+            onChange={handleChange}
             dir="ltr"
           />
         </div>
 
-        {/* الخريطة */}
+        {/* الموقع التقريبي */}
         <div className="field">
-          <label className="label">موقع الفقدان (اختياري)</label>
+          <label className="label">الموقع التقريبي (اختياري)</label>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-            انقر على الخريطة أو حرِّك الدبوس لتحديد المنطقة
+            انقر على الخريطة لتحديد مكان الفقدان
           </p>
-          <LocationPicker lat={lat} lng={lng} onChange={(la, ln) => { setLat(la); setLng(ln); }} />
-        </div>
-
-        {/* التفاصيل السرية */}
-        <div className="field">
-          <label className="label" htmlFor="secretDetails">
-            تفاصيل سرية لإثبات الملكية (اختياري)
-          </label>
-          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-            معلومة لا يعرفها إلا أنت — لن تُشارَك مع أي شخص آخر
-          </p>
-          <textarea
-            id="secretDetails" name="secretDetails" className="textarea"
-            placeholder="مثال: الرقم المتسلسل للجهاز هو XXX-YYY أو ملاحظة مكتوبة داخل المحفظة"
-            value={form.secretDetails} onChange={handleChange} rows={2}
+          <LocationPicker
+            lat={lat}
+            lng={lng}
+            onChange={(la, ln) => { setLat(la); setLng(ln); }}
           />
         </div>
 
+        {/* تفاصيل سرية */}
+        <div className="field">
+          <label className="label" htmlFor="secretDetails">
+            تفاصيل سرية للتحقق (اختياري)
+          </label>
+          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
+            معلومة لا يعرفها إلا صاحب الغرض — لن تظهر للعامة، تُستخدم لمطابقة المطالبات
+          </p>
+          <textarea
+            id="secretDetails"
+            name="secretDetails"
+            className="textarea"
+            placeholder="مثال: رقم تسلسلي، خدش في الزاوية، نقش خاص..."
+            value={form.secretDetails}
+            onChange={handleChange}
+            rows={2}
+          />
+        </div>
+
+        {/* أزرار الإجراء */}
         <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "flex-end" }}>
-          <button type="button" className="btn btn-ghost" onClick={() => router.back()}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => router.back()}
+          >
             إلغاء
           </button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+          >
             {loading ? "جارٍ النشر..." : "نشر البلاغ"}
           </button>
         </div>

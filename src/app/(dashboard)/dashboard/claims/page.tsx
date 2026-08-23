@@ -97,15 +97,22 @@ export default async function ClaimsPage() {
                   </p>
                 )}
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--space-2)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "var(--space-2)", flexWrap: "wrap", gap: "var(--space-2)" }}>
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
                     {new Date(row.createdAt).toLocaleDateString("ar-YE", { year: "numeric", month: "long", day: "numeric" })}
                   </span>
-                  {itemId && (
-                    <Link href={`/items/${itemType}/${itemId}`} className="btn btn-ghost btn-sm">
-                      عرض تفاصيل الغرض
-                    </Link>
-                  )}
+                  <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+                    {row.status === "verified" && (
+                      <Link href="/dashboard/recoveries" className="btn btn-primary btn-sm">
+                        جدولة الاستلام
+                      </Link>
+                    )}
+                    {itemId && (
+                      <Link href={`/items/${itemType}/${itemId}`} className="btn btn-ghost btn-sm">
+                        عرض تفاصيل الغرض
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."recovery_status" ADD VALUE 'deposited' BEFORE 'completed';

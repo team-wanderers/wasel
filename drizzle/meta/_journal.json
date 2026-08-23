@@ -29,6 +29,27 @@
       "when": 1787289498740,
       "tag": "0003_careful_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787292437588,
+      "tag": "0004_shallow_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787396525101,
+      "tag": "0005_left_mac_gargan",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787464925995,
+      "tag": "0006_lumpy_thundra",
+      "breakpoints": true
     }
   ]
 }

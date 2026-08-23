@@ -5,8 +5,8 @@
  *
  * درجات المطابقة:
  *   - score >= 0.65 → "suggested" match (يُنشئ سجل + يُرسل تنبيه)
- *   - score 0.40–0.64 → "potential" (يُحفظ بدون تنبيه للعرض في الواجهة)
- *   - score < 0.40 → مُهمَل
+ *   - score 0.35–0.64 → "potential" (يُحفظ بدون تنبيه للعرض في الواجهة)
+ *   - score < 0.35 → مُهمَل
  *
  * الأوزان:
  *   - تطابق التصنيف:    0.40
@@ -18,6 +18,7 @@ import { db } from "@/db";
 import { lostItems, foundItems, matches, auditLogs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notify } from "./notify";
+import { normalizeArabic } from "./normalize";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -26,19 +27,18 @@ const TOKEN_WEIGHT     = 0.35;
 const GEO_WEIGHT       = 0.25;
 
 const MAX_RADIUS_KM    = 50;     // نصف القطر الأقصى للتأثير الجغرافي
-const MATCH_THRESHOLD  = 0.65;  // عتبة إنشاء Match حقيقي + تنبيه
-const POTENTIAL_FLOOR  = 0.40;  // أدنى درجة للتسجيل بدون تنبيه
+const MATCH_THRESHOLD  = 0.60;  // عتبة إنشاء Match حقيقي + تنبيه
+const POTENTIAL_FLOOR  = 0.35;  // أدنى درجة للتسجيل بدون تنبيه
 
 // ── Text Tokenization ──────────────────────────────────────────────────────
 
 /**
- * يُحوِّل النص العربي/الإنجليزي إلى مجموعة tokens.
- * يُزيل الحروف غير الأبجدية ويُوحِّد الحالة.
+ * يُحوِّل النص العربي/الإنجليزي إلى مجموعة tokens موحدة ومطبَّعة.
  */
 function tokenize(text: string): Set<string> {
+  const normalized = normalizeArabic(text);
   return new Set(
-    text
-      .toLowerCase()
+    normalized
       .replace(/[^\u0600-\u06FFa-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length > 1),
@@ -100,6 +100,9 @@ export function computeScore(lost: LostRow, found: FoundRow): number {
   ) {
     const distKm = haversineKm(lost.lat, lost.lng, found.lat, found.lng);
     geoScore = Math.max(0, 1 - distKm / MAX_RADIUS_KM);
+  } else if (catScore === 1.0 && textScore > 0) {
+    // درجة جغرافية محايدة في حال عدم وجود إحداثيات ولكن مع تطابق التصنيف والنص
+    geoScore = 0.5;
   }
 
   const score =

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { foundItems, auditLogs } from "@/db/schema";
+import { foundItems, itemMedia, auditLogs } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { runMatchingEngine } from "@/lib/matching";
 import { eq, desc } from "drizzle-orm";
 
 const createSchema = z.object({
@@ -13,6 +14,12 @@ const createSchema = z.object({
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   secretDetails: z.string().optional().nullable(),
+  images: z.array(
+    z.object({
+      path: z.string(),
+      mime: z.string().optional(),
+    }).or(z.string())
+  ).optional().nullable(),
 });
 
 export async function GET() {
@@ -52,7 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" }, { status: 422 });
   }
 
-  const { title, description, category, foundAt, lat, lng, secretDetails } = parsed.data;
+  const { title, description, category, foundAt, lat, lng, secretDetails, images } = parsed.data;
 
   const [item] = await db
     .insert(foundItems)
@@ -65,10 +72,29 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
+  // إدراج الصور المرتبطة بالبلاغ في جدول itemMedia
+  if (images && images.length > 0) {
+    for (const img of images) {
+      const imgPath = typeof img === "string" ? img : img.path;
+      const imgMime = typeof img === "object" && img.mime ? img.mime : "image/jpeg";
+      if (imgPath && imgPath.trim().length > 0) {
+        const cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
+        await db.insert(itemMedia).values({
+          foundItemId: item.id,
+          path: cleanPath,
+          mime: imgMime,
+        });
+      }
+    }
+  }
+
   await db.insert(auditLogs).values({
     actorId: session.id, action: "create",
     entityType: "found_item", entityId: item.id, meta: { title },
   });
+
+  // تشغيل محرك المطابقة تلقائياً في الخلفية
+  runMatchingEngine().catch((err) => console.error("[AUTO_MATCH_FOUND_ERROR]", err));
 
   return NextResponse.json(item, { status: 201 });
 }

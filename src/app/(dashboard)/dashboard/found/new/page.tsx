@@ -29,9 +29,9 @@ export default function NewFoundItemPage() {
   const [form, setForm] = useState({ title: "", description: "", category: "", foundAt: "", secretDetails: "" });
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ path: string; id: string; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [createdId, setCreatedId] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -45,47 +45,24 @@ export default function NewFoundItemPage() {
     const res = await fetch("/api/found", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, lat, lng, foundAt: form.foundAt ? new Date(form.foundAt).toISOString() : null }),
+      body: JSON.stringify({
+        ...form,
+        lat,
+        lng,
+        foundAt: form.foundAt ? new Date(form.foundAt).toISOString() : null,
+        images: uploadedImages.map((img) => ({ path: img.path })),
+      }),
     });
 
     const data = await res.json();
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error ?? "حدث خطأ");
+      setError(data.error ?? "حدث خطأ أثناء تسجيل الغرض");
     } else {
-      setCreatedId(data.id);
+      router.push("/dashboard/found");
+      router.refresh();
     }
-  }
-
-  function handleDone() {
-    router.push("/dashboard/found");
-    router.refresh();
-  }
-
-  if (createdId) {
-    return (
-      <div style={{ maxWidth: "680px" }}>
-        <div className="card" style={{ textAlign: "center", padding: "var(--space-8)", marginBottom: "var(--space-6)" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-4)" }}>✅</div>
-          <h2 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
-            تم تسجيل الغرض بنجاح
-          </h2>
-          <p style={{ color: "var(--color-text-secondary)", marginBottom: "var(--space-6)" }}>
-            يمكنك إضافة صور للمساعدة في التعرف على الغرض (اختياري)
-          </p>
-          <div style={{ textAlign: "start", marginBottom: "var(--space-6)" }}>
-            <label className="label" style={{ marginBottom: "var(--space-3)", display: "block" }}>
-              صور الغرض (اختياري)
-            </label>
-            <ImageUploader foundItemId={createdId} />
-          </div>
-          <button onClick={handleDone} className="btn btn-primary" style={{ width: "100%" }}>
-            انتهيت — عرض ما وجدته
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -132,6 +109,11 @@ export default function NewFoundItemPage() {
           <textarea id="description" name="description" className="textarea"
             placeholder="صف الغرض بدقة — اللون، الحجم، العلامات المميزة..."
             value={form.description} onChange={handleChange} required rows={4} />
+        </div>
+
+        <div className="field">
+          <label className="label">صور الغرض (اختياري)</label>
+          <ImageUploader onUpload={setUploadedImages} />
         </div>
 
         <div className="field">

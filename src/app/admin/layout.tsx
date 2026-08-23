@@ -2,11 +2,11 @@ import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 
 const adminLinks = [
-  { href: "/admin", label: "الرئيسية", icon: "🏠" },
-  { href: "/admin/users", label: "المستخدمون", icon: "👥" },
-  { href: "/admin/items", label: "البلاغات", icon: "📋" },
-  { href: "/admin/pickup-points", label: "نقاط الأمانة", icon: "📍" },
-  { href: "/admin/claims", label: "المطالبات", icon: "⚖️" },
+  { href: "/admin", label: "الرئيسية" },
+  { href: "/admin/users", label: "المستخدمون" },
+  { href: "/admin/items", label: "البلاغات" },
+  { href: "/admin/pickup-points", label: "نقاط الأمانة" },
+  { href: "/admin/claims", label: "المطالبات" },
 ];
 
 export default async function AdminLayout({
@@ -33,7 +33,6 @@ export default async function AdminLayout({
         <aside className="sidebar">
           {adminLinks.map((link) => (
             <Link key={link.href} href={link.href} className="sidebar-link">
-              <span>{link.icon}</span>
               <span>{link.label}</span>
             </Link>
           ))}

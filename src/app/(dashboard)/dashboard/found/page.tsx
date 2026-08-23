@@ -68,9 +68,11 @@ export default async function FoundItemsPage() {
                     ? new Date(item.foundAt).toLocaleDateString("ar-YE")
                     : new Date(item.createdAt).toLocaleDateString("ar-YE")}
                 </span>
-                <Link href={`/dashboard/found/${item.id}/edit`} className="btn btn-ghost btn-sm">
-                  تعديل
-                </Link>
+                {item.status === "open" && (
+                  <Link href={`/dashboard/found/${item.id}/edit`} className="btn btn-ghost btn-sm">
+                    تعديل
+                  </Link>
+                )}
               </div>
             </div>
           ))}

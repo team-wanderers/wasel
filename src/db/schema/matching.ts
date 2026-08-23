@@ -30,6 +30,7 @@ export const claimStatusEnum = pgEnum("claim_status", [
 export const recoveryStatusEnum = pgEnum("recovery_status", [
   "scheduled",
   "in_progress",
+  "deposited",
   "completed",
   "cancelled",
 ]);
@@ -93,10 +94,14 @@ export const pickupPoints = pgTable("pickup_points", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   address: text("address").notNull(),
+  phone: text("phone"),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
@@ -116,7 +121,12 @@ export const recoveries = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     ownerConfirmedAt: timestamp("owner_confirmed_at", { withTimezone: true }),
     finderConfirmedAt: timestamp("finder_confirmed_at", { withTimezone: true }),
+    notes: text("notes"),
+    handoverCode: text("handover_code"),
     createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },

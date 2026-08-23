@@ -3,11 +3,12 @@ import { requireUser } from "@/lib/auth";
 import { headers } from "next/headers";
 
 const navLinks = [
-  { href: "/dashboard",         label: "الرئيسية",   icon: "🏠" },
-  { href: "/dashboard/lost",    label: "مفقوداتي",   icon: "📋" },
-  { href: "/dashboard/found",   label: "ما وجدته",   icon: "🔍" },
-  { href: "/dashboard/matches", label: "المطابقات",  icon: "🔗" },
-  { href: "/dashboard/claims",  label: "مطالباتي",   icon: "📝" },
+  { href: "/dashboard",         label: "الرئيسية" },
+  { href: "/dashboard/lost",    label: "مفقوداتي" },
+  { href: "/dashboard/found",   label: "ما وجدته" },
+  { href: "/dashboard/matches", label: "المطابقات" },
+  { href: "/dashboard/claims",  label: "مطالباتي" },
+  { href: "/dashboard/recoveries", label: "الاستلام والتسليم" },
 ];
 
 export default async function DashboardLayout({
@@ -47,7 +48,6 @@ export default async function DashboardLayout({
                 background: pathname === link.href ? "var(--color-primary-light)" : undefined,
               }}
             >
-              <span>{link.icon}</span>
               <span>{link.label}</span>
             </Link>
           ))}
