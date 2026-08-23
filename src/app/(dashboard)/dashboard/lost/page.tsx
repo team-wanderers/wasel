@@ -70,9 +70,11 @@ export default async function LostItemsPage() {
                     ? new Date(item.lostAt).toLocaleDateString("ar-YE")
                     : new Date(item.createdAt).toLocaleDateString("ar-YE")}
                 </span>
-                <Link href={`/dashboard/lost/${item.id}/edit`} className="btn btn-ghost btn-sm">
-                  تعديل
-                </Link>
+                {item.status === "open" && (
+                  <Link href={`/dashboard/lost/${item.id}/edit`} className="btn btn-ghost btn-sm">
+                    تعديل
+                  </Link>
+                )}
               </div>
             </div>
           ))}

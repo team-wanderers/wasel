@@ -20,22 +20,14 @@ const statusLabels: Record<string, { label: string; className: string }> = {
   closed:    { label: "مغلق",       className: "badge-claimed" },
 };
 
-type Params = { params: Promise<{ type: string; id: string }> };
-
-export default async function ItemDetailPage({ params }: Params) {
-  const { type, id } = await params;
-
-  if (type !== "lost" && type !== "found") notFound();
-
-  const session = await getSession();
-
+async function getItemById(type: "lost" | "found", id: string) {
   let item: {
     id: string; title: string; description: string; category: string;
     status: string; lat: number | null; lng: number | null;
     lostAt?: Date | null; foundAt?: Date | null; createdAt: Date; userId: string;
-  } | undefined;
+  } | null = null;
 
-  let media: { id: string; path: string; mime: string }[] = [];
+  let images: { id: string; path: string; mime: string }[] = [];
 
   if (type === "lost") {
     const [row] = await db
@@ -48,13 +40,14 @@ export default async function ItemDetailPage({ params }: Params) {
       .from(lostItems)
       .where(eq(lostItems.id, id))
       .limit(1);
-    if (!row) notFound();
-    item = { ...row, foundAt: null };
 
-    media = await db
-      .select({ id: itemMedia.id, path: itemMedia.path, mime: itemMedia.mime })
-      .from(itemMedia)
-      .where(eq(itemMedia.lostItemId, id));
+    if (row) {
+      item = { ...row, foundAt: null };
+      images = await db
+        .select({ id: itemMedia.id, path: itemMedia.path, mime: itemMedia.mime })
+        .from(itemMedia)
+        .where(eq(itemMedia.lostItemId, id));
+    }
   } else {
     const [row] = await db
       .select({
@@ -66,14 +59,31 @@ export default async function ItemDetailPage({ params }: Params) {
       .from(foundItems)
       .where(eq(foundItems.id, id))
       .limit(1);
-    if (!row) notFound();
-    item = { ...row, lostAt: null };
 
-    media = await db
-      .select({ id: itemMedia.id, path: itemMedia.path, mime: itemMedia.mime })
-      .from(itemMedia)
-      .where(eq(itemMedia.foundItemId, id));
+    if (row) {
+      item = { ...row, lostAt: null };
+      images = await db
+        .select({ id: itemMedia.id, path: itemMedia.path, mime: itemMedia.mime })
+        .from(itemMedia)
+        .where(eq(itemMedia.foundItemId, id));
+    }
   }
+
+  if (!item) return null;
+  return { ...item, images };
+}
+
+type Params = { params: Promise<{ type: string; id: string }> };
+
+export default async function ItemDetailPage({ params }: Params) {
+  const { type, id } = await params;
+
+  if (type !== "lost" && type !== "found") notFound();
+
+  const session = await getSession();
+  const item = await getItemById(type, id);
+
+  if (!item) notFound();
 
   let counterpartId: string | null = null;
   if (session && !isOwner(session.id, item.userId)) {
@@ -154,36 +164,82 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         </div>
 
-        {media.length > 0 && (
-          <div style={{ marginBottom: "var(--space-6)" }}>
-            <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
-              الصور
-            </h2>
+        <div style={{ marginBottom: "var(--space-6)" }}>
+          <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
+            معرض الصور
+          </h2>
+          {item.images && item.images.length > 0 ? (
             <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-              {media.map((m) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={m.id}
-                  src={`/${m.path}`}
-                  alt="صورة الغرض"
-                  style={{
-                    width: "150px", height: "150px", objectFit: "cover",
-                    borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)",
-                  }}
-                />
-              ))}
+              {item.images.map((m) => {
+                const src = m.path.startsWith("/") ? m.path : `/${m.path}`;
+                return (
+                  <a
+                    key={m.id}
+                    href={src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-block", position: "relative" }}
+                    title="انقر لفتح الصورة بحجمها الكامل"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt="صورة الغرض"
+                      style={{
+                        width: "180px",
+                        height: "180px",
+                        objectFit: "cover",
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--color-border)",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                  </a>
+                );
+              })}
             </div>
-          </div>
-        )}
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "360px",
+                height: "160px",
+                border: "2px dashed var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                background: "var(--color-bg-secondary)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "var(--space-2)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+              </svg>
+              <span style={{ fontSize: "var(--font-size-xs)", fontWeight: 500 }}>لم يتم إرفاق صور لهذا البلاغ</span>
+            </div>
+          )}
+        </div>
 
-        {item.lat && item.lng && (
-          <div style={{ marginBottom: "var(--space-6)" }}>
-            <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
-              الموقع التقريبي
-            </h2>
-            <MapViewer lat={item.lat} lng={item.lng} />
-          </div>
-        )}
+        <div style={{ marginBottom: "var(--space-6)" }}>
+          <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text-secondary)" }}>
+            الموقع التقريبي
+          </h2>
+          <MapViewer
+            lat={item.lat ?? 14.5372}
+            lng={item.lng ?? 46.8319}
+            zoom={item.lat && item.lng ? 15 : 13}
+          />
+          {!item.lat && (
+            <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-2)" }}>
+              * لم يتم تحديد إحداثيات دقيقة لهذا البلاغ — يتم عرض الموقع العام لمدينة عتق / شبوة.
+            </p>
+          )}
+        </div>
 
         {item.status === "claimed" && (
           <div style={{ marginBottom: "var(--space-6)", padding: "var(--space-4)", background: "hsl(38,90%,94%)", border: "1px solid hsl(38,90%,75%)", borderRadius: "var(--radius-md)", color: "hsl(30,80%,25%)", fontSize: "var(--font-size-sm)", fontWeight: 500 }}>
@@ -219,12 +275,13 @@ export default async function ItemDetailPage({ params }: Params) {
           </div>
         )}
 
-        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-6)", display: "flex", gap: "var(--space-4)", flexWrap: "wrap" }}>
-          {owner ? (
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-6)", display: "flex", gap: "var(--space-4)", flexWrap: "wrap", alignItems: "center" }}>
+          {owner && item.status === "open" && (
             <Link href={`/dashboard/${type}/${item.id}/edit`} className="btn btn-outline">
               تعديل البلاغ
             </Link>
-          ) : item.status === "claimed" ? (
+          )}
+          {item.status === "claimed" ? (
             <span className="badge" style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--font-size-sm)", background: "hsl(38,90%,92%)", color: "hsl(30,80%,30%)" }}>
               قيد إجراءات الاسترداد
             </span>

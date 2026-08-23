@@ -1,0 +1,1 @@
+ALTER TABLE "recoveries" ADD COLUMN "handover_code" text;

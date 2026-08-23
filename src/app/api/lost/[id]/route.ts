@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { lostItems, auditLogs } from "@/db/schema";
+import { lostItems, itemMedia, auditLogs } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
 
@@ -14,6 +14,16 @@ const updateSchema = z.object({
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   secretDetails: z.string().optional().nullable(),
+  images: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        path: z.string(),
+        mime: z.string().optional(),
+        id: z.string().optional(),
+      }),
+    ])
+  ).optional().nullable(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,7 +41,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (!item) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
 
-  return NextResponse.json(item);
+  const media = await db
+    .select({
+      id: itemMedia.id,
+      path: itemMedia.path,
+      mime: itemMedia.mime,
+    })
+    .from(itemMedia)
+    .where(eq(itemMedia.lostItemId, id));
+
+  return NextResponse.json({
+    ...item,
+    images: media,
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -57,17 +79,37 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (!existing) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
 
+  const { images, ...fieldsToUpdate } = parsed.data;
   const updateData: Record<string, unknown> = {
-    ...parsed.data,
+    ...fieldsToUpdate,
     updatedAt: new Date(),
   };
-  if (parsed.data.lostAt) updateData.lostAt = new Date(parsed.data.lostAt);
+  if (fieldsToUpdate.lostAt) updateData.lostAt = new Date(fieldsToUpdate.lostAt);
 
   const [updated] = await db
     .update(lostItems)
     .set(updateData)
     .where(eq(lostItems.id, id))
     .returning();
+
+  // مزامنة وتحديث الوسائط إذا تم تمريرها
+  if (images !== undefined) {
+    await db.delete(itemMedia).where(eq(itemMedia.lostItemId, id));
+    if (images && images.length > 0) {
+      for (const img of images) {
+        const imgPath = typeof img === "string" ? img : img.path;
+        const imgMime = typeof img === "object" && img.mime ? img.mime : "image/jpeg";
+        if (imgPath && imgPath.trim().length > 0) {
+          const cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
+          await db.insert(itemMedia).values({
+            lostItemId: id,
+            path: cleanPath,
+            mime: imgMime,
+          });
+        }
+      }
+    }
+  }
 
   await db.insert(auditLogs).values({
     actorId: session.id,

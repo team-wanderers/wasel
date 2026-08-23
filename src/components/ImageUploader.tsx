@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 
-interface UploadedFile {
+export interface UploadedFile {
   id: string;
   path: string;
   previewUrl: string;
@@ -11,11 +11,28 @@ interface UploadedFile {
 interface ImageUploaderProps {
   lostItemId?: string;
   foundItemId?: string;
+  initialFiles?: { id: string; path: string; previewUrl?: string }[];
   onUpload?: (files: UploadedFile[]) => void;
 }
 
-export default function ImageUploader({ lostItemId, foundItemId, onUpload }: ImageUploaderProps) {
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+function normalizeFile(f: { id: string; path: string; previewUrl?: string }): UploadedFile {
+  const preview = f.previewUrl || (f.path.startsWith("/") ? f.path : `/${f.path}`);
+  return {
+    id: f.id,
+    path: f.path,
+    previewUrl: preview,
+  };
+}
+
+export default function ImageUploader({
+  lostItemId,
+  foundItemId,
+  initialFiles,
+  onUpload,
+}: ImageUploaderProps) {
+  const [files, setFiles] = useState<UploadedFile[]>(() =>
+    (initialFiles || []).map(normalizeFile)
+  );
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +62,7 @@ export default function ImageUploader({ lostItemId, foundItemId, onUpload }: Ima
       }
 
       results.push({
-        id: data.id,
+        id: data.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`),
         path: data.path,
         previewUrl: URL.createObjectURL(file),
       });
@@ -70,8 +87,8 @@ export default function ImageUploader({ lostItemId, foundItemId, onUpload }: Ima
       {/* Thumbnails */}
       {files.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
-          {files.map((f) => (
-            <div key={f.id} style={{ position: "relative", display: "inline-block" }}>
+          {files.map((f, index) => (
+            <div key={f.id || f.previewUrl || index} style={{ position: "relative", display: "inline-block" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={f.previewUrl}
