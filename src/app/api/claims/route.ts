@@ -5,6 +5,7 @@ import { claims, lostItems, foundItems } from "@/db/schema";
 import { eq, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { verifyProof } from "@/lib/normalize";
+import { notify } from "@/lib/notify";
 
 function toNullableUuid(val: unknown): string | null {
   if (typeof val !== "string") return null;
@@ -206,6 +207,39 @@ export async function POST(req: NextRequest) {
           .set({ status: "claimed", updatedAt: now })
           .where(eq(lostItems.id, targetId));
       }
+
+      await Promise.all([
+        notify({
+          userId: session.id,
+          type: "claim.verified",
+          title: "تم إثبات ملكيتك للغرض بنجاح!",
+          body: "تم التحقق من إثبات الملكية بنجاح. يمكنك الآن الانتقال لجدولة موعد ونقطة الاستلام.",
+          link: "/dashboard/recoveries",
+        }),
+        notify({
+          userId: targetUserId,
+          type: "claim.verified",
+          title: "تم توثيق مطالبة معتمدة على غرضك",
+          body: "تم التحقق من ملكية الغرض المنشور بنجاح وجاهز لخطوة الجدولة والتسليم.",
+          link: "/dashboard/claims",
+        }),
+      ]);
+    } else if (status === "rejected") {
+      await notify({
+        userId: session.id,
+        type: "claim.rejected",
+        title: "لم يتم قبول المطالبة",
+        body: "عذراً، لم تتطابق التفاصيل المقدمة مع بيانات الغرض المسجلة.",
+        link: "/dashboard/claims",
+      });
+    } else {
+      await notify({
+        userId: targetUserId,
+        type: "claim.created",
+        title: "مطالبة جديدة واردة",
+        body: "تلقيت مطالبة جديدة على غرض منشور بواسطتك وبانتظار المراجعة.",
+        link: "/dashboard/claims",
+      });
     }
 
     return NextResponse.json(

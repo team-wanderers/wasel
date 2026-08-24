@@ -50,6 +50,13 @@
       "when": 1787464925995,
       "tag": "0006_lumpy_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787549643793,
+      "tag": "0007_mature_the_captain",
+      "breakpoints": true
     }
   ]
 }

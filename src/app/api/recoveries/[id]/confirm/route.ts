@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { recoveries, claims, lostItems, foundItems, auditLogs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -155,6 +156,29 @@ export async function POST(req: NextRequest, { params }: Params) {
           completedAt: now.toISOString(),
         },
       }).catch((err) => console.error("Audit log error:", err));
+
+      // إشعار الطرفين باكتمال الاسترجاع
+      const ownerId = rec.lostUserId ?? (rec.foundItemId ? rec.claimantId : null);
+      const finderId = rec.foundUserId ?? (rec.lostItemId ? rec.claimantId : null);
+
+      if (ownerId) {
+        await notify({
+          userId: ownerId,
+          type: "recovery.completed",
+          title: "اكتمل استرجاع الغرض بنجاح",
+          body: "تم تأكيد استلام الغرض وإغلاق البلاغ بنجاح.",
+          link: "/dashboard/recoveries",
+        });
+      }
+      if (finderId) {
+        await notify({
+          userId: finderId,
+          type: "recovery.completed",
+          title: "اكتمل تسليم الغرض بنجاح",
+          body: "تم استلام الغرض من قِبل المالك وإغلاق البلاغ بنجاح. شكراً لأمانتك!",
+          link: "/dashboard/recoveries",
+        });
+      }
     } else {
       const actionName = newStatus === "deposited" ? "recovery.deposited" : "recovery.confirmed_partial";
       await db.insert(auditLogs).values({
@@ -168,6 +192,19 @@ export async function POST(req: NextRequest, { params }: Params) {
           ownerConfirmedAt: newOwnerConfirmedAt?.toISOString(),
         },
       }).catch((err) => console.error("Audit log error:", err));
+
+      if (newStatus === "deposited") {
+        const ownerId = rec.lostUserId ?? (rec.foundItemId ? rec.claimantId : null);
+        if (ownerId) {
+          await notify({
+            userId: ownerId,
+            type: "recovery.deposited",
+            title: "تم إيداع غرضك في نقطة الأمانة",
+            body: "قام الملتقط بإيداع الغرض في المركز المعتمد. يمكنك التوجه لاستلامه بالرمز المخصص.",
+            link: "/dashboard/recoveries",
+          });
+        }
+      }
     }
 
     let responseMessage = "تم تسجيل التأكيد بنجاح";
