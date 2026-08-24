@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { claims, lostItems, foundItems } from "@/db/schema";
@@ -221,7 +222,7 @@ export async function POST(req: NextRequest) {
           type: "claim.verified",
           title: "تم توثيق مطالبة معتمدة على غرضك",
           body: "تم التحقق من ملكية الغرض المنشور بنجاح وجاهز لخطوة الجدولة والتسليم.",
-          link: "/dashboard/claims",
+          link: "/dashboard/recoveries",
         }),
       ]);
     } else if (status === "rejected") {
@@ -238,9 +239,13 @@ export async function POST(req: NextRequest) {
         type: "claim.created",
         title: "مطالبة جديدة واردة",
         body: "تلقيت مطالبة جديدة على غرض منشور بواسطتك وبانتظار المراجعة.",
-        link: "/dashboard/claims",
+        link: type === "found" ? `/dashboard/found/${targetId}` : `/dashboard/lost/${targetId}`,
       });
     }
+
+    revalidatePath("/dashboard/claims");
+    revalidatePath("/dashboard/claims", "page");
+    revalidatePath("/dashboard");
 
     return NextResponse.json(
       {
