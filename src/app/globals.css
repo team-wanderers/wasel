@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
 
 /* ── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
@@ -38,15 +38,29 @@
   --space-16: 4rem;
 
   /* Radius */
-  --radius-sm:  4px;
-  --radius-md:  8px;
-  --radius-lg:  12px;
-  --radius-xl:  16px;
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+
+  /* Accents */
+  --color-indigo:        hsl(245, 65%, 48%);
+  --color-indigo-light:  hsl(245, 65%, 96%);
+  --color-purple:        hsl(270, 60%, 45%);
+  --color-purple-light:  hsl(270, 60%, 96%);
+  --color-teal:          hsl(172, 55%, 35%);
+  --color-teal-light:    hsl(172, 55%, 95%);
+
+  /* Gradients */
+  --gradient-hero: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 55%, var(--color-indigo) 100%);
+  --gradient-banner: linear-gradient(135deg, var(--color-primary) 0%, var(--color-indigo) 100%);
 
   /* Shadows */
-  --shadow-sm:  0 1px 3px hsl(220 25% 15% / 0.08);
-  --shadow-md:  0 4px 12px hsl(220 25% 15% / 0.10);
-  --shadow-lg:  0 8px 24px hsl(220 25% 15% / 0.12);
+  --shadow-sm:  0 1px 3px hsl(220 25% 15% / 0.07);
+  --shadow-md:  0 4px 14px hsl(220 30% 20% / 0.10);
+  --shadow-lg:  0 12px 32px hsl(220 30% 25% / 0.14);
+  --shadow-glow: 0 8px 24px hsl(210 70% 40% / 0.30);
 
   /* Typography */
   --font-family: 'Cairo', system-ui, sans-serif;
@@ -95,9 +109,14 @@ img, video { max-width: 100%; display: block; }
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-6);
-  transition: box-shadow 200ms ease;
+  transition: box-shadow 200ms ease, transform 200ms ease;
 }
 .card:hover { box-shadow: var(--shadow-md); }
+
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
@@ -218,7 +237,9 @@ img, video { max-width: 100%; display: block; }
 
 /* ── Navbar ──────────────────────────────────────────────────────────────── */
 .navbar {
-  background: var(--color-surface);
+  background: hsl(0 0% 100% / 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
   padding-block: var(--space-3);
   position: sticky;
@@ -329,4 +350,165 @@ img, video { max-width: 100%; display: block; }
   }
   .main-content { padding: var(--space-4); }
   .navbar-nav { display: none; }
+}
+
+/* ── v2 · Decorative Blobs ─────────────────────────────────────────────── */
+.blob-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+.blob-blue   { background: hsl(210, 80%, 80% / 0.35); }
+.blob-green  { background: hsl(142, 60%, 75% / 0.25); }
+.blob-indigo { background: hsl(245, 70%, 78% / 0.22); }
+
+/* ── v2 · Eyebrow Pill ─────────────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 100px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  margin-bottom: var(--space-4);
+}
+.eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: eyebrow-pulse 2s ease-in-out infinite;
+}
+@keyframes eyebrow-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+/* ── v2 · Hero / Banners ───────────────────────────────────────────────── */
+.hero-gradient {
+  background: var(--gradient-hero);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.dark-banner {
+  background: hsl(220, 30%, 12%);
+  color: #fff;
+  border-radius: var(--radius-2xl);
+  position: relative;
+  overflow: hidden;
+}
+.banner-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+.btn-white {
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  box-shadow: var(--shadow-glow);
+}
+.btn-white:hover:not(:disabled) { background: hsl(210, 40%, 95%); }
+
+.btn-lg-hero {
+  padding: 0.9rem 2rem;
+  font-size: var(--font-size-lg);
+}
+
+.btn-outline-white {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid hsl(0 0% 100% / 0.45);
+}
+.btn-outline-white:hover:not(:disabled) { background: hsl(0 0% 100% / 0.12); }
+
+/* ── v2 · Scroll Reveal ────────────────────────────────────────────────── */
+.reveal-hidden {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-hidden { opacity: 1; transform: none; transition: none; }
+}
+
+/* ── v2 · OTP Boxes ────────────────────────────────────────────────────── */
+.otp-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  direction: ltr;
+}
+.otp-box {
+  width: 3rem;
+  height: 3.4rem;
+  text-align: center;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.otp-box:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px hsl(210 70% 40% / 0.15);
+}
+@media (max-width: 420px) {
+  .otp-box { width: 2.5rem; height: 3rem; font-size: var(--font-size-lg); }
+}
+
+/* ── v2 · Step Number Tiles ────────────────────────────────────────────── */
+.step-tile {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--space-4);
+}
+.tile-blue   { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.tile-green  { background: var(--color-success-light);  color: hsl(142, 60%, 25%); }
+.tile-indigo { background: var(--color-indigo-light);   color: var(--color-indigo); }
+.tile-purple { background: var(--color-purple-light);   color: var(--color-purple); }
+
+/* ── v2 · Footer ───────────────────────────────────────────────────────── */
+.footer {
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-8) 0;
+  margin-top: var(--space-16);
+}
+.footer-brand {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.footer-text {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
