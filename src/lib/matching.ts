@@ -181,8 +181,20 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
         // تنبيه فقط للمطابقات فوق العتبة
         if (score >= MATCH_THRESHOLD) {
           await Promise.all([
-            notify(lost.userId,  "match_suggested", "وجدنا تطابقاً محتملاً!", `نسبة التطابق: ${Math.round(score * 100)}%`),
-            notify(found.userId, "match_suggested", "هناك مطابقة لغرضٍ وجدته!", `نسبة التطابق: ${Math.round(score * 100)}%`),
+            notify({
+              userId: lost.userId,
+              type: "match.created",
+              title: "وجدنا تطابقاً لبلاغك المفقود!",
+              body: `تم العثور على تطابق لـ "${lost.title}" بنسبة ${Math.round(score * 100)}%`,
+              link: "/dashboard/matches",
+            }),
+            notify({
+              userId: found.userId,
+              type: "match.created",
+              title: "هناك مطابقة لغرضٍ وجدته!",
+              body: `توجد مطابقة للغرض "${found.title}" مع بلاغ مفقود بنسبة ${Math.round(score * 100)}%`,
+              link: "/dashboard/matches",
+            }),
           ]);
         }
       } else if (Math.abs(existing.score - score) > 0.01) {

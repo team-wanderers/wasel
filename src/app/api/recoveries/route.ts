@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { recoveries, claims, pickupPoints, lostItems, foundItems, auditLogs } from "@/db/schema";
 import { eq, or, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 const scheduleSchema = z.object({
   claimId: z.string().uuid("معرّف المطالبة غير صالح"),
@@ -174,7 +175,6 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // تسجيل في audit_logs
     await db.insert(auditLogs).values({
       actorId: session.id,
       action: "recovery.scheduled",
@@ -186,6 +186,20 @@ export async function POST(req: NextRequest) {
         scheduledAt: scheduledDate?.toISOString(),
       },
     }).catch((err) => console.error("Audit log error:", err));
+
+    const otherUserId = claim.lostUserId === session.id
+      ? (claim.foundUserId ?? claim.claimantId)
+      : (claim.lostUserId ?? claim.claimantId);
+
+    if (otherUserId && otherUserId !== session.id) {
+      await notify({
+        userId: otherUserId,
+        type: "recovery.scheduled",
+        title: "تمت جدولة موعد ونقطة الاستلام",
+        body: "تم تحديد موعد ونقطة استلام الغرض في نقطة الأمانة المعتمدة.",
+        link: "/dashboard/recoveries",
+      });
+    }
 
     return NextResponse.json(recovery, { status: 201 });
   } catch (error) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { headers } from "next/headers";
+import NotificationBell from "@/components/NotificationBell";
 
 const navLinks = [
   { href: "/dashboard",         label: "الرئيسية" },
@@ -9,6 +10,7 @@ const navLinks = [
   { href: "/dashboard/matches", label: "المطابقات" },
   { href: "/dashboard/claims",  label: "مطالباتي" },
   { href: "/dashboard/recoveries", label: "الاستلام والتسليم" },
+  { href: "/dashboard/notifications", label: "الإشعارات" },
 ];
 
 export default async function DashboardLayout({
@@ -26,6 +28,7 @@ export default async function DashboardLayout({
         <div className="container navbar-inner">
           <Link href="/" className="navbar-logo">واصل</Link>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
+            <NotificationBell />
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               مرحباً، {user.name ?? user.phone}
             </span>

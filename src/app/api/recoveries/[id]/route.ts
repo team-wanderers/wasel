@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { recoveries, claims, pickupPoints, lostItems, foundItems, auditLogs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -211,6 +212,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         notes,
       },
     }).catch((err) => console.error("Audit log error:", err));
+
+    const otherUserId = existing.lostUserId === session.id
+      ? (existing.foundUserId ?? existing.claimantId)
+      : (existing.lostUserId ?? existing.claimantId);
+
+    if (otherUserId && otherUserId !== session.id) {
+      await notify({
+        userId: otherUserId,
+        type: "recovery.rescheduled",
+        title: "تم تعديل موعد الاستلام",
+        body: "قام الطرف الآخر بتحديث موعد أو نقطة الاستلام المقترحة.",
+        link: "/dashboard/recoveries",
+      });
+    }
 
     return NextResponse.json(updatedRow, { status: 200 });
   } catch (error) {
