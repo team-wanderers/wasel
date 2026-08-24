@@ -1,5 +1,5 @@
-import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 
 export default async function AuthLayout({
   children,
@@ -9,18 +9,5 @@ export default async function AuthLayout({
   const user = await getSession();
   if (user) redirect("/dashboard");
 
-  return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "var(--space-4)",
-        background: "var(--color-bg)",
-      }}
-    >
-      {children}
-    </main>
-  );
+  return <main>{children}</main>;
 }
