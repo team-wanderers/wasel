@@ -449,6 +449,13 @@ export default async function ProfilePage() {
               العودة إلى لوحة التحكم
             </Link>
 
+            <Link
+              href="/dashboard/profile/edit"
+              className="btn btn-outline"
+            >
+              تعديل الملف الشخصي
+            </Link>
+
             <form
               action="/api/auth/logout"
               method="POST"
