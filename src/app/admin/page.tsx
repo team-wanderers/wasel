@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users, lostItems, foundItems, matches } from "@/db/schema";
 import { count, eq } from "drizzle-orm";
 import Link from "next/link";
+import { IconPlay } from "@/components/icons";
 
 export default async function AdminPage() {
   await requireAdmin();
@@ -27,7 +28,9 @@ export default async function AdminPage() {
       <div className="page-header">
         <h1 className="page-title">لوحة الإدارة</h1>
         <form action="/api/match/run" method="POST">
-          <button type="submit" className="btn btn-primary">▶ تشغيل محرك المطابقة</button>
+          <button type="submit" className="btn btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <IconPlay size={14} /> تشغيل محرك المطابقة
+          </button>
         </form>
       </div>
 

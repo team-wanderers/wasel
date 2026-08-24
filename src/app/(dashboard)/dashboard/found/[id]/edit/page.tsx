@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import ImageUploader from "@/components/ImageUploader";
+import { IconCheck, IconLock, IconPencil } from "@/components/icons";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -261,7 +262,7 @@ export default function EditFoundItemPage() {
             marginBottom: "var(--space-4)",
           }}
         >
-          ✏️ تعديل البلاغ
+          <IconPencil size={16} /> تعديل البلاغ
         </span>
 
         <h1
@@ -319,7 +320,9 @@ export default function EditFoundItemPage() {
               gap: "var(--space-3)",
             }}
           >
-            <div style={{ fontSize: "1.5rem" }}>✅</div>
+            <div style={{ color: "var(--color-success)", paddingTop: "0.2rem" }}>
+              <IconCheck size={24} strokeWidth={2} />
+            </div>
 
             <div>
               <h2
@@ -626,8 +629,8 @@ export default function EditFoundItemPage() {
           </div>
 
           <div className="field edit-report-full">
-            <label className="label" htmlFor="secretDetails">
-              🔒 التفاصيل السرية
+            <label className="label" htmlFor="secretDetails" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <IconLock size={15} /> التفاصيل السرية
             </label>
 
             <p

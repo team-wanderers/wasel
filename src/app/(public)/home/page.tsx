@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import {
+  IconLock,
+  IconMapPin,
+  IconSearch,
+} from "@/components/icons";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -41,12 +46,12 @@ export default async function HomePage() {
         <div className="container">
           <div className="grid-cards">
             {[
-              { icon: "🔍", title: "محرك مطابقة ذكي", desc: "يُقارن البلاغات تلقائياً بناءً على التصنيف والوصف والموقع الجغرافي" },
-              { icon: "🔒", title: "تحقق آمن", desc: "بياناتك السرية لا تُكشف أبداً — التحقق يثبت هويتك دون انكشاف تفاصيلك" },
-              { icon: "📍", title: "نقاط أمانة معتمدة", desc: "تسليم المفقودات في مواقع آمنة ومحايدة داخل المدينة" },
+              { icon: <IconSearch size={40} />, title: "محرك مطابقة ذكي", desc: "يُقارن البلاغات تلقائياً بناءً على التصنيف والوصف والموقع الجغرافي" },
+              { icon: <IconLock size={40} />, title: "تحقق آمن", desc: "بياناتك السرية لا تُكشف أبداً — التحقق يثبت هويتك دون انكشاف تفاصيلك" },
+              { icon: <IconMapPin size={40} />, title: "نقاط أمانة معتمدة", desc: "تسليم المفقودات في مواقع آمنة ومحايدة داخل المدينة" },
             ].map((f) => (
               <div key={f.title} className="card" style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-4)" }}>{f.icon}</div>
+                <div style={{ marginBottom: "var(--space-4)", color: "var(--color-primary)", display: "flex", justifyContent: "center" }}>{f.icon}</div>
                 <h2 style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: "var(--space-2)" }}>{f.title}</h2>
                 <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{f.desc}</p>
               </div>

@@ -3,13 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NotificationItem } from "@/components/NotificationBell";
+import {
+  IconBell,
+  IconCheck,
+  IconInfo,
+  IconPackage,
+  IconShield,
+  IconTarget,
+} from "@/components/icons";
 
 interface Props {
   initialNotifications: NotificationItem[];
 }
 
 type NotificationVisual = {
-  icon: string;
+  icon: React.ReactNode;
   iconBackground: string;
   iconColor: string;
   badge: string;
@@ -66,7 +74,7 @@ export default function NotificationsManager({
   function getNotificationVisual(type: string): NotificationVisual {
     if (type.startsWith("match")) {
       return {
-        icon: "🎯",
+        icon: <IconTarget size={26} />,
         ...VISUAL_STYLES.match,
         badge: "مطابقة ذكية",
       };
@@ -74,7 +82,7 @@ export default function NotificationsManager({
 
     if (type.startsWith("claim")) {
       return {
-        icon: "🔐",
+        icon: <IconShield size={26} />,
         ...VISUAL_STYLES.claim,
         badge: "مطالبة ملكية",
       };
@@ -82,14 +90,14 @@ export default function NotificationsManager({
 
     if (type.startsWith("recovery")) {
       return {
-        icon: "📦",
+        icon: <IconPackage size={26} />,
         ...VISUAL_STYLES.recovery,
         badge: "استلام وتسليم",
       };
     }
 
     return {
-      icon: "ℹ️",
+      icon: <IconInfo size={26} />,
       ...VISUAL_STYLES.system,
       badge: "النظام",
     };
@@ -222,7 +230,7 @@ export default function NotificationsManager({
             marginBottom: "var(--space-4)",
           }}
         >
-          🔔 مركز التنبيهات
+          <IconBell size={16} /> مركز التنبيهات
         </div>
 
         <div
@@ -352,11 +360,13 @@ export default function NotificationsManager({
         >
           <div
             style={{
-              fontSize: "4rem",
               marginBottom: "var(--space-5)",
+              color: "var(--color-text-muted)",
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            🔔
+            <IconBell size={56} strokeWidth={1.2} />
           </div>
 
           <h2
@@ -610,9 +620,13 @@ export default function NotificationsManager({
                               "var(--color-text-muted)",
                             fontSize:
                               "var(--font-size-sm)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "var(--space-1)",
                           }}
                         >
-                          ✓ تمت القراءة
+                          <IconCheck size={14} /> تمت
+                          القراءة
                         </span>
                       )}
                     </div>

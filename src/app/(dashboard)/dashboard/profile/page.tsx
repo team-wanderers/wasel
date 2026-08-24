@@ -9,6 +9,14 @@ import {
   notifications,
 } from "@/db/schema";
 import { and, count, eq, isNull, or } from "drizzle-orm";
+import {
+  IconBell,
+  IconClipboard,
+  IconPackage,
+  IconShield,
+  IconTarget,
+  IconUser,
+} from "@/components/icons";
 
 export default async function ProfilePage() {
   const user = await requireUser();
@@ -75,7 +83,7 @@ export default async function ProfilePage() {
   const stats = [
     {
       href: "/dashboard/lost",
-      icon: "📋",
+      icon: <IconClipboard size={22} />,
       value: lostCount,
       label: "بلاغات المفقودات",
       background: "hsl(0, 80%, 97%)",
@@ -84,7 +92,7 @@ export default async function ProfilePage() {
     },
     {
       href: "/dashboard/found",
-      icon: "📦",
+      icon: <IconPackage size={22} />,
       value: foundCount,
       label: "بلاغات الموجودات",
       background: "hsl(142, 60%, 97%)",
@@ -93,7 +101,7 @@ export default async function ProfilePage() {
     },
     {
       href: "/dashboard/matches",
-      icon: "🎯",
+      icon: <IconTarget size={22} />,
       value: matchesCount,
       label: "المطابقات",
       background: "hsl(215, 90%, 97%)",
@@ -102,7 +110,7 @@ export default async function ProfilePage() {
     },
     {
       href: "/dashboard/claims",
-      icon: "🔐",
+      icon: <IconShield size={22} />,
       value: claimsCount,
       label: "المطالبات",
       background: "hsl(38, 90%, 97%)",
@@ -111,7 +119,7 @@ export default async function ProfilePage() {
     },
     {
       href: "/dashboard/notifications",
-      icon: "🔔",
+      icon: <IconBell size={22} />,
       value: unreadNotificationsCount,
       label: "الإشعارات غير المقروءة",
       background: "hsl(270, 70%, 97%)",
@@ -137,7 +145,7 @@ export default async function ProfilePage() {
             marginBottom: "var(--space-4)",
           }}
         >
-          👤 حسابي
+          <IconUser size={16} /> حسابي
         </span>
 
         <h1
@@ -195,11 +203,10 @@ export default async function ProfilePage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "2.5rem",
                 flexShrink: 0,
               }}
             >
-              👤
+              <IconUser size={44} />
             </div>
 
             <div>

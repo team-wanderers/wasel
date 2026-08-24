@@ -12,6 +12,12 @@ import { getSession } from "@/lib/auth";
 import MapViewer from "@/components/MapViewer";
 import ClaimSection from "@/components/ClaimSection";
 import ShareButton from "@/components/ShareButton";
+import {
+  IconCamera,
+  IconLock,
+  IconPackage,
+  IconShield,
+} from "@/components/icons";
 
 const categoryLabels: Record<string, string> = {
   documents: "وثائق",
@@ -270,8 +276,8 @@ export default async function ItemDetailPage({
               marginBottom: "var(--space-4)",
             }}
           >
-            📦 تفاصيل البلاغ
-          </span>
+              <IconPackage size={16} /> تفاصيل البلاغ
+            </span>
 
           <h1
             style={{
@@ -392,11 +398,13 @@ export default async function ItemDetailPage({
                 >
                   <div
                     style={{
-                      fontSize: "4rem",
+                      color: "var(--color-text-muted)",
                       marginBottom: "var(--space-4)",
+                      display: "flex",
+                      justifyContent: "center",
                     }}
                   >
-                    📷
+                    <IconCamera size={56} strokeWidth={1.2} />
                   </div>
 
                   <strong
@@ -619,8 +627,8 @@ export default async function ItemDetailPage({
                   padding: "var(--space-5)",
                 }}
               >
-                <div style={{ fontSize: "1.3rem" }}>
-                  🔒
+                <div style={{ flexShrink: 0, marginTop: "0.1rem" }}>
+                  <IconLock size={22} />
                 </div>
 
                 <div>
@@ -737,7 +745,7 @@ export default async function ItemDetailPage({
                 marginBottom: "var(--space-3)",
               }}
             >
-              🔐 إثبات الملكية
+              <IconShield size={14} /> إثبات الملكية
             </span>
 
             <h2

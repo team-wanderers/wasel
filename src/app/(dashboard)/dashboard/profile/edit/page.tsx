@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { IconPencil } from "@/components/icons";
 import EditProfileForm from "./EditProfileForm";
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default async function EditProfilePage() {
             marginBottom: "var(--space-4)",
           }}
         >
-          ✏️ إعدادات الحساب
+          <IconPencil size={16} /> إعدادات الحساب
         </span>
 
         <h1

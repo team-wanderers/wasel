@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { IconCamera } from "@/components/icons";
 
 export interface UploadedFile {
   id: string;
@@ -129,7 +130,7 @@ export default function ImageUploader({
           background: "var(--color-bg-secondary)",
         }}
       >
-        <span style={{ fontSize: "1.2rem" }}>📷</span>
+        <IconCamera size={20} />
         <span>{uploading ? "جارٍ الرفع..." : "إضافة صور (اختياري)"}</span>
         <input
           ref={inputRef}

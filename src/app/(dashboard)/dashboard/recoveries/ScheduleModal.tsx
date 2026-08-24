@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IconClose } from "@/components/icons";
 
 export interface PickupPoint {
   id: string;
@@ -158,16 +159,18 @@ export default function ScheduleModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="إغلاق"
             style={{
               background: "none",
               border: "none",
-              fontSize: "var(--font-size-xl)",
               cursor: "pointer",
               color: "var(--color-text-muted)",
               lineHeight: 1,
+              display: "inline-flex",
+              padding: "0.2rem",
             }}
           >
-            ✕
+            <IconClose size={18} />
           </button>
         </div>
 

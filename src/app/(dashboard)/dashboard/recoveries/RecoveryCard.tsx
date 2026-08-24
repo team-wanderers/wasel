@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IconCheck, IconCircle } from "@/components/icons";
 
 export interface RecoveryItem {
   id: string;
@@ -274,15 +275,31 @@ export default function RecoveryCard({
       {/* شريط المتابعة والتأكيد */}
       <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-4)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)" }}>
         <div style={{ display: "flex", gap: "var(--space-4)", flexWrap: "wrap", fontSize: "var(--font-size-xs)" }}>
-          <span style={{ color: recovery.finderConfirmedAt ? "hsl(142,60%,30%)" : "var(--color-text-muted)", fontWeight: recovery.finderConfirmedAt ? 600 : 400 }}>
-            {recovery.finderConfirmedAt
-              ? `✓ تم إيداع الغرض في المركز (${new Date(recovery.finderConfirmedAt).toLocaleDateString("ar-YE")})`
-              : "○ لم يتم إيداع الغرض بعد"}
+          <span style={{ color: recovery.finderConfirmedAt ? "hsl(142,60%,30%)" : "var(--color-text-muted)", fontWeight: recovery.finderConfirmedAt ? 600 : 400, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+            {recovery.finderConfirmedAt ? (
+              <>
+                <IconCheck size={12} strokeWidth={2.4} />
+                تم إيداع الغرض في المركز ({new Date(recovery.finderConfirmedAt).toLocaleDateString("ar-YE")})
+              </>
+            ) : (
+              <>
+                <IconCircle size={12} />
+                لم يتم إيداع الغرض بعد
+              </>
+            )}
           </span>
-          <span style={{ color: recovery.ownerConfirmedAt ? "hsl(142,60%,30%)" : "var(--color-text-muted)", fontWeight: recovery.ownerConfirmedAt ? 600 : 400 }}>
-            {recovery.ownerConfirmedAt
-              ? `✓ تم استلام المالك (${new Date(recovery.ownerConfirmedAt).toLocaleDateString("ar-YE")})`
-              : "○ بانتظار استلام المالك"}
+          <span style={{ color: recovery.ownerConfirmedAt ? "hsl(142,60%,30%)" : "var(--color-text-muted)", fontWeight: recovery.ownerConfirmedAt ? 600 : 400, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+            {recovery.ownerConfirmedAt ? (
+              <>
+                <IconCheck size={12} strokeWidth={2.4} />
+                تم استلام المالك ({new Date(recovery.ownerConfirmedAt).toLocaleDateString("ar-YE")})
+              </>
+            ) : (
+              <>
+                <IconCircle size={12} />
+                بانتظار استلام المالك
+              </>
+            )}
           </span>
         </div>
 
@@ -301,8 +318,8 @@ export default function RecoveryCard({
                     {isConfirming ? "جارٍ تسجيل الإيداع..." : buttonText}
                   </button>
                 ) : (
-                  <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 600 }}>
-                    ✓ تم إيداعك للغرض — بانتظار استلام المالك
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                    <IconCheck size={12} strokeWidth={2.4} /> تم إيداعك للغرض — بانتظار استلام المالك
                   </span>
                 )}
               </>
@@ -341,8 +358,8 @@ export default function RecoveryCard({
                     </button>
                   </form>
                 ) : (
-                  <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 600 }}>
-                    ✓ تم تسجيل استلامك بنجاح
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                    <IconCheck size={12} strokeWidth={2.4} /> تم تسجيل استلامك بنجاح
                   </span>
                 )}
               </>
@@ -363,8 +380,8 @@ export default function RecoveryCard({
         )}
 
         {isCompleted && (
-          <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 700 }}>
-            ✓ اكتمل الاسترجاع وأُغلق البلاغ بنجاح
+          <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+            <IconCheck size={12} strokeWidth={2.4} /> اكتمل الاسترجاع وأُغلق البلاغ بنجاح
           </span>
         )}
       </div>
