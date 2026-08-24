@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import MapViewer from "@/components/MapViewer";
 import ClaimSection from "@/components/ClaimSection";
+import ShareButton from "@/components/ShareButton";
 
 const categoryLabels: Record<string, string> = {
   documents: "وثائق",
@@ -874,6 +875,8 @@ export default async function ItemDetailPage({
               هذا البلاغ لم يعد متاحًا
             </span>
           ) : null}
+
+          <ShareButton title={item.title} />
 
           <Link
             href="/search"

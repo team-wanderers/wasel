@@ -11,6 +11,7 @@ interface ClaimFormProps {
 
 export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }: ClaimFormProps) {
   const [open, setOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [proof, setProof] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -79,13 +80,92 @@ export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="btn btn-primary"
-      >
-        {itemType === "found" ? "هذا ملكي — تقديم مطالبة" : "وجدت هذا الغرض — تقديم مطالبة"}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setShowConfirm(true)}
+          className="btn btn-primary"
+        >
+          {itemType === "found" ? "هذا ملكي — تقديم مطالبة" : "وجدت هذا الغرض — تقديم مطالبة"}
+        </button>
+
+        {showConfirm && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="تأكيد المطالبة"
+            onClick={() => setShowConfirm(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.5)",
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "var(--space-4)",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#fff",
+                borderRadius: "var(--radius-lg)",
+                maxWidth: "440px",
+                width: "100%",
+                padding: "var(--space-7)",
+                textAlign: "center",
+                boxShadow: "var(--shadow-lg)",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "var(--font-size-xl)",
+                  fontWeight: 800,
+                  marginBottom: "var(--space-3)",
+                }}
+              >
+                هل هذا الغرض يخصك؟
+              </h3>
+
+              <p
+                style={{
+                  fontSize: "var(--font-size-sm)",
+                  color: "var(--color-text-secondary)",
+                  lineHeight: 1.8,
+                  marginBottom: "var(--space-6)",
+                }}
+              >
+                سيُطلب منك كتابة تفاصيل سرية تعرفها فقط عن هذا الغرض، ويتم
+                التحقق منها آليًا قبل قبول المطالبة.
+              </p>
+
+              <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    setShowConfirm(false);
+                    setOpen(true);
+                  }}
+                >
+                  نعم، أتابع
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ flex: 1 }}
+                  onClick={() => setShowConfirm(false)}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
