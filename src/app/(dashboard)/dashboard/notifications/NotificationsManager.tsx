@@ -17,6 +17,33 @@ type NotificationVisual = {
   badgeColor: string;
 };
 
+const VISUAL_STYLES = {
+  match: {
+    iconBackground: "hsl(210, 70%, 95%)",
+    iconColor: "hsl(210, 60%, 35%)",
+    badgeBackground: "hsl(210, 70%, 95%)",
+    badgeColor: "hsl(210, 60%, 35%)",
+  },
+  claim: {
+    iconBackground: "hsl(38, 90%, 95%)",
+    iconColor: "hsl(38, 80%, 28%)",
+    badgeBackground: "hsl(38, 90%, 95%)",
+    badgeColor: "hsl(38, 80%, 28%)",
+  },
+  recovery: {
+    iconBackground: "hsl(142, 60%, 95%)",
+    iconColor: "hsl(142, 65%, 24%)",
+    badgeBackground: "hsl(142, 60%, 95%)",
+    badgeColor: "hsl(142, 65%, 24%)",
+  },
+  system: {
+    iconBackground: "hsl(270, 70%, 95%)",
+    iconColor: "hsl(270, 55%, 45%)",
+    badgeBackground: "hsl(270, 70%, 95%)",
+    badgeColor: "hsl(270, 55%, 45%)",
+  },
+} as const;
+
 export default function NotificationsManager({
   initialNotifications,
 }: Props) {
@@ -40,43 +67,31 @@ export default function NotificationsManager({
     if (type.startsWith("match")) {
       return {
         icon: "🎯",
-        iconBackground: "bg-blue-100",
-        iconColor: "text-blue-700",
+        ...VISUAL_STYLES.match,
         badge: "مطابقة ذكية",
-        badgeBackground: "bg-blue-100",
-        badgeColor: "text-blue-700",
       };
     }
 
     if (type.startsWith("claim")) {
       return {
         icon: "🔐",
-        iconBackground: "bg-yellow-100",
-        iconColor: "text-yellow-700",
+        ...VISUAL_STYLES.claim,
         badge: "مطالبة ملكية",
-        badgeBackground: "bg-yellow-100",
-        badgeColor: "text-yellow-700",
       };
     }
 
     if (type.startsWith("recovery")) {
       return {
         icon: "📦",
-        iconBackground: "bg-green-100",
-        iconColor: "text-green-700",
+        ...VISUAL_STYLES.recovery,
         badge: "استلام وتسليم",
-        badgeBackground: "bg-green-100",
-        badgeColor: "text-green-700",
       };
     }
 
     return {
       icon: "ℹ️",
-      iconBackground: "bg-purple-100",
-      iconColor: "text-purple-700",
+      ...VISUAL_STYLES.system,
       badge: "النظام",
-      badgeBackground: "bg-purple-100",
-      badgeColor: "text-purple-700",
     };
   }
 
@@ -413,7 +428,6 @@ export default function NotificationsManager({
                   }}
                 >
                   <div
-                    className={`${visual.iconBackground} ${visual.iconColor}`}
                     style={{
                       width: "56px",
                       height: "56px",
@@ -423,6 +437,8 @@ export default function NotificationsManager({
                       justifyContent: "center",
                       fontSize: "1.5rem",
                       flexShrink: 0,
+                      background: visual.iconBackground,
+                      color: visual.iconColor,
                     }}
                   >
                     {visual.icon}
