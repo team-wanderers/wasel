@@ -3,10 +3,7 @@ import Link from "next/link";
 
 const adminLinks = [
   { href: "/admin", label: "الرئيسية" },
-  { href: "/admin/users", label: "المستخدمون" },
-  { href: "/admin/items", label: "البلاغات" },
   { href: "/admin/pickup-points", label: "نقاط الأمانة" },
-  { href: "/admin/claims", label: "المطالبات" },
 ];
 
 export default async function AdminLayout({
