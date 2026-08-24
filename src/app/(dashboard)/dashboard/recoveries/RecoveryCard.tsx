@@ -19,6 +19,7 @@ export interface RecoveryItem {
   pickupPointName: string | null;
   pickupPointAddress: string | null;
   pickupPointPhone: string | null;
+  pickupPointWorkingHours: string | null;
   lostItemId: string | null;
   foundItemId: string | null;
   lostTitle: string | null;
@@ -183,6 +184,11 @@ export default function RecoveryCard({
           {recovery.pickupPointPhone && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-primary)", direction: "ltr", textAlign: "right" }}>
               {recovery.pickupPointPhone}
+            </div>
+          )}
+          {recovery.pickupPointWorkingHours && (
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+              {recovery.pickupPointWorkingHours}
             </div>
           )}
         </div>

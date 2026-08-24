@@ -25,6 +25,7 @@ export default async function RecoveriesPage() {
       pickupPointName: pickupPoints.name,
       pickupPointAddress: pickupPoints.address,
       pickupPointPhone: pickupPoints.phone,
+      pickupPointWorkingHours: pickupPoints.workingHours,
       lostItemId: claims.lostItemId,
       foundItemId: claims.foundItemId,
       lostTitle: lostItems.title,
@@ -53,6 +54,7 @@ export default async function RecoveriesPage() {
       name: pickupPoints.name,
       address: pickupPoints.address,
       phone: pickupPoints.phone,
+      workingHours: pickupPoints.workingHours,
     })
     .from(pickupPoints)
     .where(eq(pickupPoints.isActive, true))

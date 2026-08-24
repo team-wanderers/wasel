@@ -9,6 +9,7 @@ const createSchema = z.object({
   name: z.string().min(2, "اسم نقطة الاستلام مطلوب (حرفان على الأقل)"),
   address: z.string().min(3, "العنوان بالتفصيل مطلوب"),
   phone: z.string().optional().or(z.literal("")).nullable(),
+  workingHours: z.string().optional().or(z.literal("")).nullable(),
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   isActive: z.boolean().default(true),
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, address, phone, lat, lng, isActive } = parsed.data;
+    const { name, address, phone, workingHours, lat, lng, isActive } = parsed.data;
 
     const [point] = await db
       .insert(pickupPoints)
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         address: address.trim(),
         phone: phone && phone.trim().length > 0 ? phone.trim() : null,
+        workingHours: workingHours && workingHours.trim().length > 0 ? workingHours.trim() : null,
         lat: lat ?? null,
         lng: lng ?? null,
         isActive: isActive ?? true,

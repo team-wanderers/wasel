@@ -13,6 +13,7 @@ export default async function AdminPickupPointsPage() {
       name: pickupPoints.name,
       address: pickupPoints.address,
       phone: pickupPoints.phone,
+      workingHours: pickupPoints.workingHours,
       lat: pickupPoints.lat,
       lng: pickupPoints.lng,
       isActive: pickupPoints.isActive,

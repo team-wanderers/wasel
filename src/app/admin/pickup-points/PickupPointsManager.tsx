@@ -8,6 +8,7 @@ interface PickupPoint {
   name: string;
   address: string;
   phone: string | null;
+  workingHours: string | null;
   lat: number | null;
   lng: number | null;
   isActive: boolean;
@@ -26,6 +27,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [workingHours, setWorkingHours] = useState("");
   const [lat, setLat] = useState<number>(14.5372);
   const [lng, setLng] = useState<number>(46.8319);
   const [isActive, setIsActive] = useState(true);
@@ -38,6 +40,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
     setName("");
     setAddress("");
     setPhone("");
+    setWorkingHours("");
     setLat(14.5372);
     setLng(46.8319);
     setIsActive(true);
@@ -52,6 +55,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
     setName(point.name);
     setAddress(point.address);
     setPhone(point.phone ?? "");
+    setWorkingHours(point.workingHours ?? "");
     setLat(point.lat ?? 14.5372);
     setLng(point.lng ?? 46.8319);
     setIsActive(point.isActive);
@@ -75,6 +79,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
             name,
             address,
             phone: phone.trim() || null,
+            workingHours: workingHours.trim() || null,
             lat,
             lng,
             isActive,
@@ -93,6 +98,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
             name,
             address,
             phone: phone.trim() || null,
+            workingHours: workingHours.trim() || null,
             lat,
             lng,
             isActive,
@@ -236,6 +242,20 @@ export default function PickupPointsManager({ initialPoints }: Props) {
             </div>
 
             <div className="field">
+              <label className="label" htmlFor="point-hours">
+                ساعات العمل
+              </label>
+              <input
+                id="point-hours"
+                type="text"
+                className="input"
+                placeholder="مثال: السبت - الخميس: 8 صباحاً – 12 ظهراً | 4 عصراً – 8:30 مساءً"
+                value={workingHours}
+                onChange={(e) => setWorkingHours(e.target.value)}
+              />
+            </div>
+
+            <div className="field">
               <label className="label">
                 تحديد الموقع على الخريطة (عتق وما حولها)
               </label>
@@ -280,6 +300,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
               <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>الاسم والمركز</th>
               <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>العنوان</th>
               <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>رقم الهاتف</th>
+              <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>ساعات العمل</th>
               <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>الحالة</th>
               <th style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", textAlign: "center" }}>الإجراءات</th>
             </tr>
@@ -287,7 +308,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
           <tbody>
             {points.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--color-text-muted)" }}>
+                  <td colSpan={6} style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--color-text-muted)" }}>
                   لا توجد نقاط استلام مسجلة حتى الآن. أضف نقطة جديدة للبدء.
                 </td>
               </tr>
@@ -302,6 +323,9 @@ export default function PickupPointsManager({ initialPoints }: Props) {
                   </td>
                   <td style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-sm)", direction: "ltr", textAlign: "right" }}>
                     {point.phone || "—"}
+                  </td>
+                  <td style={{ padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                    {point.workingHours || "—"}
                   </td>
                   <td style={{ padding: "var(--space-3) var(--space-4)" }}>
                     <span
