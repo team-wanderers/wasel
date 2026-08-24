@@ -4,13 +4,23 @@ import { headers } from "next/headers";
 import NotificationBell from "@/components/NotificationBell";
 
 const navLinks = [
-  { href: "/dashboard",         label: "الرئيسية" },
-  { href: "/dashboard/lost",    label: "مفقوداتي" },
-  { href: "/dashboard/found",   label: "ما وجدته" },
+  { href: "/dashboard", label: "الرئيسية" },
+  { href: "/dashboard/lost", label: "مفقوداتي" },
+  { href: "/dashboard/found", label: "ما وجدته" },
   { href: "/dashboard/matches", label: "المطابقات" },
-  { href: "/dashboard/claims",  label: "مطالباتي" },
-  { href: "/dashboard/recoveries", label: "الاستلام والتسليم" },
-  { href: "/dashboard/notifications", label: "الإشعارات" },
+  { href: "/dashboard/claims", label: "مطالباتي" },
+  {
+    href: "/dashboard/recoveries",
+    label: "الاستلام والتسليم",
+  },
+  {
+    href: "/dashboard/notifications",
+    label: "الإشعارات",
+  },
+  {
+    href: "/dashboard/profile",
+    label: "ملفي الشخصي",
+  },
 ];
 
 export default async function DashboardLayout({
@@ -26,20 +36,46 @@ export default async function DashboardLayout({
     <>
       <nav className="navbar">
         <div className="container navbar-inner">
-          <Link href="/" className="navbar-logo">واصل</Link>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
+          <Link href="/" className="navbar-logo">
+            واصل
+          </Link>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-4)",
+            }}
+          >
             <NotificationBell />
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-              مرحباً، {user.name ?? user.phone}
-            </span>
+
+            <Link
+              href="/dashboard/profile"
+              style={{
+                fontSize: "var(--font-size-sm)",
+                color: "var(--color-text-secondary)",
+                textDecoration: "none",
+              }}
+            >
+              مرحباً، {user.name || user.phone || "مستخدم واصل"}
+            </Link>
+
             <form action="/api/auth/logout" method="POST">
-              <button type="submit" className="btn btn-ghost btn-sm">خروج</button>
+              <button
+                type="submit"
+                className="btn btn-ghost btn-sm"
+              >
+                خروج
+              </button>
             </form>
           </div>
         </div>
       </nav>
 
-      <div className="dashboard-layout container" style={{ maxWidth: "1200px" }}>
+      <div
+        className="dashboard-layout container"
+        style={{ maxWidth: "1200px" }}
+      >
         <aside className="sidebar">
           {navLinks.map((link) => (
             <Link
@@ -47,14 +83,19 @@ export default async function DashboardLayout({
               href={link.href}
               className="sidebar-link"
               style={{
-                fontWeight: pathname === link.href ? 700 : undefined,
-                background: pathname === link.href ? "var(--color-primary-light)" : undefined,
+                fontWeight:
+                  pathname === link.href ? 700 : undefined,
+                background:
+                  pathname === link.href
+                    ? "var(--color-primary-light)"
+                    : undefined,
               }}
             >
               <span>{link.label}</span>
             </Link>
           ))}
         </aside>
+
         <main className="main-content">{children}</main>
       </div>
     </>
