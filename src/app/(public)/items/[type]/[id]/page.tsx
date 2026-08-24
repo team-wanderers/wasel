@@ -149,7 +149,6 @@ async function getItemById(
 async function getCounterpartId(
   type: ItemType,
   itemId: string,
-  userId: string,
 ) {
   const [match] = await db
     .select({
@@ -196,7 +195,7 @@ export default async function ItemDetailPage({
 
   const counterpartId =
     session && !owner
-      ? await getCounterpartId(type, id, session.id)
+      ? await getCounterpartId(type, id)
       : null;
 
   const dateLabel = type === "lost" ? "تاريخ الفقدان" : "تاريخ الإيجاد";
