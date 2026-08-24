@@ -25,6 +25,7 @@ export default function NotificationsManager({ initialNotifications }: Props) {
         setList((prev) =>
           prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
         );
+        window.dispatchEvent(new CustomEvent("notifications-updated"));
       }
     } catch (err) {
       console.error(err);
@@ -38,6 +39,9 @@ export default function NotificationsManager({ initialNotifications }: Props) {
       if (res.ok) {
         setList((prev) =>
           prev.map((n) => ({ ...n, readAt: new Date().toISOString() }))
+        );
+        window.dispatchEvent(
+          new CustomEvent("notifications-updated", { detail: { unreadCount: 0 } })
         );
       }
     } catch (err) {

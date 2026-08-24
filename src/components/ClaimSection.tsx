@@ -23,8 +23,10 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
 
   useEffect(() => {
     if (result) {
+      router.refresh();
       const timer = setTimeout(() => {
         router.push("/dashboard/claims");
+        router.refresh();
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -68,6 +70,7 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
           <span>جارٍ تحويلك تلقائياً إلى صفحة المطالبات لمتابعة الإجراءات والجدولة...</span>
           <Link
             href="/dashboard/claims"
+            onClick={() => router.refresh()}
             className="btn btn-sm btn-outline"
             style={{ background: "#fff", borderColor: info.color, color: info.color }}
           >

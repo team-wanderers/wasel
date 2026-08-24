@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -23,31 +23,49 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const fetchLatest = useCallback(() => {
+    fetch("/api/notifications?limit=6")
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (data) {
+          setNotifications(data.notifications || []);
+          setUnreadCount(data.unreadCount || 0);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
     function load() {
-      fetch("/api/notifications?limit=6")
-        .then((res) => {
-          if (res.ok) return res.json();
-          return null;
-        })
-        .then((data) => {
-          if (isMounted && data) {
-            setNotifications(data.notifications || []);
-            setUnreadCount(data.unreadCount || 0);
-          }
-        })
-        .catch(() => {});
+      if (!isMounted) return;
+      fetchLatest();
     }
 
     load();
     const interval = setInterval(load, 60000);
+
+    function handleSync(e?: Event) {
+      if (!isMounted) return;
+      const customEvent = e as CustomEvent<{ unreadCount?: number }>;
+      if (customEvent?.detail?.unreadCount !== undefined) {
+        setUnreadCount(customEvent.detail.unreadCount);
+      }
+      load();
+    }
+
+    window.addEventListener("notifications-updated", handleSync);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener("notifications-updated", handleSync);
     };
-  }, []);
+  }, [fetchLatest]);
 
   // إغلاق القائمة عند النقر خارجها
   useEffect(() => {
@@ -71,6 +89,7 @@ export default function NotificationBell() {
           prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new CustomEvent("notifications-updated"));
       }
     } catch (err) {
       console.error(err);
@@ -86,6 +105,9 @@ export default function NotificationBell() {
           prev.map((n) => ({ ...n, readAt: new Date().toISOString() }))
         );
         setUnreadCount(0);
+        window.dispatchEvent(
+          new CustomEvent("notifications-updated", { detail: { unreadCount: 0 } })
+        );
       }
     } catch (err) {
       console.error(err);
