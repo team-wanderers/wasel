@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { eq, and, isNull } from "drizzle-orm";
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession().catch(() => null);
     if (!session) {

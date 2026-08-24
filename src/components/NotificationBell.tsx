@@ -23,25 +23,30 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  async function fetchNotifications() {
-    try {
-      const res = await fetch("/api/notifications?limit=6");
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch {
-      // ignore network errors silently
-    }
-  }
-
   useEffect(() => {
-    fetchNotifications();
+    let isMounted = true;
 
-    // فحص دوري خفيف كل دقيقة
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    function load() {
+      fetch("/api/notifications?limit=6")
+        .then((res) => {
+          if (res.ok) return res.json();
+          return null;
+        })
+        .then((data) => {
+          if (isMounted && data) {
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unreadCount || 0);
+          }
+        })
+        .catch(() => {});
+    }
+
+    load();
+    const interval = setInterval(load, 60000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // إغلاق القائمة عند النقر خارجها
