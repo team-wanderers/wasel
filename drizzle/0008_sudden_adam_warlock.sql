@@ -1,0 +1,1 @@
+ALTER TABLE "pickup_points" ADD COLUMN "working_hours" text;

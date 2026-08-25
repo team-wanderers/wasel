@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { IconClose } from "@/components/icons";
 
 export interface PickupPoint {
   id: string;
   name: string;
   address: string;
   phone: string | null;
+  workingHours: string | null;
 }
 
 export interface VerifiedClaim {
@@ -158,16 +160,18 @@ export default function ScheduleModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="إغلاق"
             style={{
               background: "none",
               border: "none",
-              fontSize: "var(--font-size-xl)",
               cursor: "pointer",
               color: "var(--color-text-muted)",
               lineHeight: 1,
+              display: "inline-flex",
+              padding: "0.2rem",
             }}
           >
-            ✕
+            <IconClose size={18} />
           </button>
         </div>
 
@@ -236,7 +240,11 @@ export default function ScheduleModal({
               <div style={{ fontWeight: 700, marginBottom: "var(--space-1)" }}>
                 ساعات عمل المركز المعتمدة ({activePoint.name}):
               </div>
-              <div>السبت - الخميس: 08:00 صباحاً – 12:00 ظهراً | 04:00 عصراً – 08:30 مساءً</div>
+              {activePoint.workingHours ? (
+                <div>{activePoint.workingHours}</div>
+              ) : (
+                <div>لم تُحدد ساعات عمل لهذا المركز بعد — يرجى التواصل قبل الحضور</div>
+              )}
               {activePoint.phone && <div style={{ marginTop: "var(--space-1)" }}>رقم التواصل: {activePoint.phone}</div>}
             </div>
           )}

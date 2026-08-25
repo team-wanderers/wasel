@@ -9,6 +9,7 @@ const updateSchema = z.object({
   name: z.string().min(2, "اسم نقطة الاستلام مطلوب").optional(),
   address: z.string().min(3, "العنوان مطلوب").optional(),
   phone: z.string().optional().or(z.literal("")).nullable(),
+  workingHours: z.string().optional().or(z.literal("")).nullable(),
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   isActive: z.boolean().optional(),
@@ -55,6 +56,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (parsed.data.address !== undefined) updateData.address = parsed.data.address.trim();
     if (parsed.data.phone !== undefined) {
       updateData.phone = parsed.data.phone && parsed.data.phone.trim().length > 0 ? parsed.data.phone.trim() : null;
+    }
+    if (parsed.data.workingHours !== undefined) {
+      updateData.workingHours =
+        parsed.data.workingHours && parsed.data.workingHours.trim().length > 0 ? parsed.data.workingHours.trim() : null;
     }
     if (parsed.data.lat !== undefined) updateData.lat = parsed.data.lat;
     if (parsed.data.lng !== undefined) updateData.lng = parsed.data.lng;

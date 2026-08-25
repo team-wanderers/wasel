@@ -58,7 +58,7 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
       L.marker([lat, lng])
         .addTo(map)
-        .bindPopup("📍 الموقع التقريبي")
+        .bindPopup("الموقع التقريبي")
         .openPopup();
 
       setTimeout(() => {

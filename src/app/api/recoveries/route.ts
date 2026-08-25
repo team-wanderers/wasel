@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { randomInt } from "crypto";
 import { db } from "@/db";
 import { recoveries, claims, pickupPoints, lostItems, foundItems, auditLogs } from "@/db/schema";
 import { eq, or, desc } from "drizzle-orm";
@@ -137,8 +138,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "غير مصرح لك بجدولة استلام هذا الغرض" }, { status: 403 });
     }
 
-    // توليد رمز عشوائي بسيط من 4 أرقام
-    const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+    const generatedOtp = String(randomInt(1000, 10000));
 
     // تحقق من وجود استرداد مسبق لنفس المطالبة
     const [existing] = await db

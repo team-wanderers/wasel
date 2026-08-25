@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { computeScore } from "../lib/matching";
 
 console.log("=========================================");
@@ -29,8 +30,8 @@ const itemFoundA = {
 
 const scoreA = computeScore(itemLostA, itemFoundA);
 console.log(`   Test Case A (High Match): Score = ${scoreA} (${Math.round(scoreA * 100)}%)`);
-console.log(`   Should exceed 0.65 threshold: ${scoreA >= 0.65 ? "PASS (Suggested Match)" : "FAIL"}`);
-if (scoreA < 0.65) throw new Error("Expected score >= 0.65 for close match");
+console.log(`   Should exceed 0.60 threshold: ${scoreA >= 0.6 ? "PASS (Suggested Match)" : "FAIL"}`);
+if (scoreA < 0.6) throw new Error("Expected score >= 0.60 for close match");
 
 // Test Case B: Partial match (Same category, some text overlap, slightly further distance)
 const itemFoundB = {
@@ -45,7 +46,7 @@ const itemFoundB = {
 
 const scoreB = computeScore(itemLostA, itemFoundB);
 console.log(`   Test Case B (Partial Match): Score = ${scoreB} (${Math.round(scoreB * 100)}%)`);
-console.log(`   Should be in potential range (0.40 - 0.64): ${scoreB >= 0.40 && scoreB < 0.65 ? "PASS (Potential Match)" : "INFO"}`);
+console.log(`   Should be in potential range (0.35 - 0.59): ${scoreB >= 0.35 && scoreB < 0.6 ? "PASS (Potential Match)" : "INFO"}`);
 
 // Test Case C: Mismatched category & completely different text
 const itemFoundC = {

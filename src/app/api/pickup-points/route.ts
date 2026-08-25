@@ -11,6 +11,7 @@ export async function GET() {
         name: pickupPoints.name,
         address: pickupPoints.address,
         phone: pickupPoints.phone,
+        workingHours: pickupPoints.workingHours,
         lat: pickupPoints.lat,
         lng: pickupPoints.lng,
       })

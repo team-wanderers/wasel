@@ -95,6 +95,7 @@ export const pickupPoints = pgTable("pickup_points", {
   name: text("name").notNull(),
   address: text("address").notNull(),
   phone: text("phone"),
+  workingHours: text("working_hours"),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
   isActive: boolean("is_active").notNull().default(true),
