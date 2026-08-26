@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     await writeFile(filePath, buffer);
 
-    const relativePath = `uploads/${filename}`;
+    const relativePath = `/uploads/${filename}`;
     const mimeType = file.type || "image/jpeg";
 
     let mediaId: string = filename;

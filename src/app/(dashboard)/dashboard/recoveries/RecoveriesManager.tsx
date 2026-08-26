@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ScheduleModal, { PickupPoint, VerifiedClaim } from "./ScheduleModal";
 import RecoveryCard, { RecoveryItem } from "./RecoveryCard";
@@ -13,16 +13,26 @@ interface Props {
   currentUserId: string;
 }
 
-export default function RecoveriesManager({
+function RecoveriesManagerInner({
   initialRecoveries,
   availablePickupPoints,
   verifiedClaims,
   currentUserId,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramClaimId = searchParams.get("claimId");
+  const paramAction = searchParams.get("action");
+
   const [recoveriesList, setRecoveriesList] = useState<RecoveryItem[]>(initialRecoveries);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalOpenOverride, setModalOpenOverride] = useState<boolean | null>(null);
+  const isModalOpen = modalOpenOverride !== null
+    ? modalOpenOverride
+    : Boolean(paramAction === "schedule" || paramClaimId);
+
   const [activeModalRecovery, setActiveModalRecovery] = useState<RecoveryItem | null>(null);
+  const [customTargetClaimId, setCustomTargetClaimId] = useState<string | undefined>(undefined);
+  const targetClaimId = customTargetClaimId ?? (paramClaimId || undefined);
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -41,12 +51,14 @@ export default function RecoveriesManager({
 
   function handleOpenNewSchedule() {
     setActiveModalRecovery(null);
-    setIsModalOpen(true);
+    setCustomTargetClaimId(undefined);
+    setModalOpenOverride(true);
   }
 
   function handleOpenReschedule(rec: RecoveryItem) {
     setActiveModalRecovery(rec);
-    setIsModalOpen(true);
+    setCustomTargetClaimId(undefined);
+    setModalOpenOverride(true);
   }
 
   async function handleConfirm(recId: string) {
@@ -153,12 +165,15 @@ export default function RecoveriesManager({
       {/* مودال الجدولة وتعديل المواعيد */}
       {isModalOpen && (
         <ScheduleModal
-          key={activeModalRecovery?.id || "new-schedule"}
+          key={activeModalRecovery?.id || targetClaimId || "new-schedule"}
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setModalOpenOverride(false);
+            setCustomTargetClaimId(undefined);
+          }}
           availablePickupPoints={availablePickupPoints}
           verifiedClaims={verifiedClaims}
-          defaultClaimId={activeModalRecovery?.claimId}
+          defaultClaimId={activeModalRecovery?.claimId || targetClaimId}
           existingRecoveryId={activeModalRecovery?.id}
           defaultPickupPointId={activeModalRecovery?.pickupPointId || undefined}
           defaultDate={activeModalRecovery?.scheduledAt ? String(activeModalRecovery.scheduledAt) : undefined}
@@ -204,5 +219,13 @@ export default function RecoveriesManager({
         </div>
       )}
     </div>
+  );
+}
+
+export default function RecoveriesManager(props: Props) {
+  return (
+    <Suspense fallback={<div>جارٍ التحميل...</div>}>
+      <RecoveriesManagerInner {...props} />
+    </Suspense>
   );
 }

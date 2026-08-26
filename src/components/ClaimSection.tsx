@@ -25,7 +25,11 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
     if (result) {
       router.refresh();
       const timer = setTimeout(() => {
-        router.push("/dashboard/claims");
+        if (result.status === "verified") {
+          router.push(`/dashboard/recoveries?claimId=${result.id}&action=schedule`);
+        } else {
+          router.push("/dashboard/claims");
+        }
         router.refresh();
       }, 1500);
       return () => clearTimeout(timer);
@@ -67,14 +71,18 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
             gap: "var(--space-2)",
           }}
         >
-          <span>جارٍ تحويلك تلقائياً إلى صفحة المطالبات لمتابعة الإجراءات والجدولة...</span>
+          <span>
+            {result.status === "verified"
+              ? "جارٍ تحويلك تلقائياً لجدولة موعد ونقطة الاستلام..."
+              : "جارٍ تحويلك تلقائياً إلى صفحة المطالبات لمتابعة المراجعة..."}
+          </span>
           <Link
-            href="/dashboard/claims"
+            href={result.status === "verified" ? `/dashboard/recoveries?claimId=${result.id}&action=schedule` : "/dashboard/claims"}
             onClick={() => router.refresh()}
             className="btn btn-sm btn-outline"
             style={{ background: "#fff", borderColor: info.color, color: info.color }}
           >
-            الانتقال للمطالبات الآن ←
+            {result.status === "verified" ? "الانتقال لجدولة الاستلام الآن ←" : "الانتقال للمطالبات الآن ←"}
           </Link>
         </div>
       </div>
@@ -86,7 +94,15 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
       itemType={itemType}
       itemId={itemId}
       counterpartId={counterpartId}
-      onSuccess={(id, status, notes) => setResult({ id, status, notes })}
+      onSuccess={(id, status, notes) => {
+        setResult({ id, status, notes });
+        if (status === "verified") {
+          router.push(`/dashboard/recoveries?claimId=${id}&action=schedule`);
+        } else {
+          router.push("/dashboard/claims");
+        }
+        router.refresh();
+      }}
     />
   );
 }

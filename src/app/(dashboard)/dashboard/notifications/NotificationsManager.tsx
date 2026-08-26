@@ -2,58 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { NotificationItem } from "@/components/NotificationBell";
+import { useNotifications, NotificationItem } from "@/context/NotificationContext";
 
-interface Props {
-  initialNotifications: NotificationItem[];
-}
-
-export default function NotificationsManager({ initialNotifications }: Props) {
+export default function NotificationsManager() {
   const router = useRouter();
-  const [list, setList] = useState<NotificationItem[]>(initialNotifications);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [loading, setLoading] = useState(false);
 
-  const filtered = list.filter((n) => (filter === "unread" ? !n.readAt : true));
-  const unreadCount = list.filter((n) => !n.readAt).length;
-
-  async function handleMarkAsRead(id: string, e?: React.MouseEvent) {
-    if (e) e.stopPropagation();
-    try {
-      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
-      if (res.ok) {
-        setList((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
-        );
-        window.dispatchEvent(new CustomEvent("notifications-updated"));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleMarkAllAsRead() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/notifications/read-all", { method: "POST" });
-      if (res.ok) {
-        setList((prev) =>
-          prev.map((n) => ({ ...n, readAt: new Date().toISOString() }))
-        );
-        window.dispatchEvent(
-          new CustomEvent("notifications-updated", { detail: { unreadCount: 0 } })
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const filtered = notifications.filter((n) => (filter === "unread" ? !n.readAt : true));
 
   function handleItemClick(notif: NotificationItem) {
     if (!notif.readAt) {
-      handleMarkAsRead(notif.id);
+      markAsRead(notif.id);
     }
     if (notif.link) {
       router.push(notif.link);
@@ -92,7 +52,7 @@ export default function NotificationsManager({ initialNotifications }: Props) {
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={handleMarkAllAsRead}
+            onClick={() => markAllAsRead()}
             disabled={loading}
           >
             {loading ? "جارٍ التحديث..." : "تحديد كافة الإشعارات كمقروءة"}
@@ -107,7 +67,7 @@ export default function NotificationsManager({ initialNotifications }: Props) {
           onClick={() => setFilter("all")}
           className={`btn btn-sm ${filter === "all" ? "btn-primary" : "btn-ghost"}`}
         >
-          كافة الإشعارات ({list.length})
+          كافة الإشعارات ({notifications.length})
         </button>
         <button
           type="button"
@@ -188,7 +148,10 @@ export default function NotificationsManager({ initialNotifications }: Props) {
                     {isUnread ? (
                       <button
                         type="button"
-                        onClick={(e) => handleMarkAsRead(n.id, e)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(n.id);
+                        }}
                         style={{
                           background: "none",
                           border: "none",

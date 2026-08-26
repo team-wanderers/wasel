@@ -81,12 +81,21 @@ export default async function RecoveriesPage() {
       )
     );
 
-  const verifiedClaims = verifiedClaimsRows.map((c) => ({
-    id: c.id,
-    itemTitle: c.foundTitle ?? c.lostTitle ?? "غرض مطالبة",
-    lostItemId: c.lostItemId,
-    foundItemId: c.foundItemId,
-  }));
+  // حصر المطالبات المعتمدة التي ليس لها عملية استلام سابقة أو جارية
+  const scheduledClaimIds = new Set(
+    recoveriesRows
+      .filter((r) => r.status !== "cancelled")
+      .map((r) => r.claimId)
+  );
+
+  const verifiedClaims = verifiedClaimsRows
+    .filter((c) => !scheduledClaimIds.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      itemTitle: c.foundTitle ?? c.lostTitle ?? "غرض مطالبة",
+      lostItemId: c.lostItemId,
+      foundItemId: c.foundItemId,
+    }));
 
   return (
     <RecoveriesManager

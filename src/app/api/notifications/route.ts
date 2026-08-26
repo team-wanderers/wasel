@@ -4,11 +4,19 @@ import { notifications } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { eq, and, isNull, desc, count } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession().catch(() => null);
     if (!session) {
-      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+      return NextResponse.json(
+        { error: "غير مصرح" },
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+        }
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -34,12 +42,23 @@ export async function GET(req: NextRequest) {
 
     const unreadCount = Number(unreadRes?.count ?? 0);
 
-    return NextResponse.json({
-      notifications: list,
-      unreadCount,
-    });
+    return NextResponse.json(
+      {
+        notifications: list,
+        unreadCount,
+      },
+      {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
   } catch (error) {
     console.error("[NOTIFICATIONS_GET_ERROR]", error);
-    return NextResponse.json({ error: "حدث خطأ أثناء جلب الإشعارات" }, { status: 500 });
+    return NextResponse.json(
+      { error: "حدث خطأ أثناء جلب الإشعارات" },
+      {
+        status: 500,
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+      }
+    );
   }
 }

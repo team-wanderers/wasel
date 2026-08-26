@@ -1,71 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useNotifications, NotificationItem } from "@/context/NotificationContext";
 
-export interface NotificationItem {
-  id: string;
-  userId: string;
-  type: string;
-  title: string;
-  body: string;
-  link: string | null;
-  readAt: string | Date | null;
-  createdAt: string | Date;
-}
+export { type NotificationItem };
 
 export default function NotificationBell() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const fetchLatest = useCallback(() => {
-    fetch("/api/notifications?limit=6")
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
-      .then((data) => {
-        if (data) {
-          setNotifications(data.notifications || []);
-          setUnreadCount(data.unreadCount || 0);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    function load() {
-      if (!isMounted) return;
-      fetchLatest();
-    }
-
-    load();
-    const interval = setInterval(load, 60000);
-
-    function handleSync(e?: Event) {
-      if (!isMounted) return;
-      const customEvent = e as CustomEvent<{ unreadCount?: number }>;
-      if (customEvent?.detail?.unreadCount !== undefined) {
-        setUnreadCount(customEvent.detail.unreadCount);
-      }
-      load();
-    }
-
-    window.addEventListener("notifications-updated", handleSync);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-      window.removeEventListener("notifications-updated", handleSync);
-    };
-  }, [fetchLatest]);
 
   // إغلاق القائمة عند النقر خارجها
   useEffect(() => {
@@ -80,45 +26,9 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  async function handleMarkAsRead(id: string, e?: React.MouseEvent) {
-    if (e) e.stopPropagation();
-    try {
-      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-        window.dispatchEvent(new CustomEvent("notifications-updated"));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleMarkAllAsRead() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/notifications/read-all", { method: "POST" });
-      if (res.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => ({ ...n, readAt: new Date().toISOString() }))
-        );
-        setUnreadCount(0);
-        window.dispatchEvent(
-          new CustomEvent("notifications-updated", { detail: { unreadCount: 0 } })
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function handleItemClick(notif: NotificationItem) {
     if (!notif.readAt) {
-      handleMarkAsRead(notif.id);
+      markAsRead(notif.id);
     }
     setIsOpen(false);
     if (notif.link) {
@@ -130,6 +40,8 @@ export default function NotificationBell() {
     const d = new Date(dateVal);
     return d.toLocaleDateString("ar-YE", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   }
+
+  const latestNotifications = notifications.slice(0, 6);
 
   return (
     <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
@@ -172,53 +84,54 @@ export default function NotificationBell() {
             style={{
               position: "absolute",
               top: "2px",
-              insetInlineEnd: "2px",
-              minWidth: "18px",
-              height: "18px",
-              padding: "0 4px",
-              backgroundColor: "var(--color-danger)",
+              right: "2px",
+              background: "var(--color-danger)",
               color: "#fff",
-              fontSize: "11px",
+              fontSize: "10px",
               fontWeight: 700,
+              minWidth: "16px",
+              height: "16px",
               borderRadius: "var(--radius-full)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              padding: "0 4px",
               lineHeight: 1,
-              border: "2px solid #fff",
             }}
           >
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
-      {/* قائمة الإشعارات المنسدلة Popover */}
+      {/* القائمة المنسدلة السريعة Dropdown Popover */}
       {isOpen && (
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 8px)",
-            insetInlineEnd: 0,
-            width: "320px",
+            top: "calc(100% + var(--space-2))",
+            left: "0",
+            width: "360px",
             maxWidth: "90vw",
             background: "#fff",
-            borderRadius: "var(--radius-lg)",
             border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-lg)",
             boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            zIndex: 100,
+            zIndex: 1000,
             overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {/* Header */}
+          {/* رأس القائمة */}
           <div
             style={{
+              padding: "var(--space-3) var(--space-4)",
+              background: "var(--color-bg-secondary)",
+              borderBottom: "1px solid var(--color-border)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: "var(--space-3) var(--space-4)",
-              borderBottom: "1px solid var(--color-border)",
-              background: "var(--color-bg-secondary)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -226,15 +139,15 @@ export default function NotificationBell() {
               {unreadCount > 0 && (
                 <span
                   style={{
-                    fontSize: "var(--font-size-xs)",
-                    background: "var(--color-primary-light)",
-                    color: "var(--color-primary)",
-                    padding: "2px 6px",
+                    background: "var(--color-danger-light)",
+                    color: "hsl(0,70%,40%)",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
                     borderRadius: "var(--radius-full)",
-                    fontWeight: 600,
                   }}
                 >
-                  {unreadCount} جديد
+                  {unreadCount} جديدة
                 </span>
               )}
             </div>
@@ -242,12 +155,12 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 type="button"
-                onClick={handleMarkAllAsRead}
+                onClick={() => markAllAsRead()}
                 disabled={loading}
                 style={{
                   background: "none",
                   border: "none",
-                  fontSize: "var(--font-size-xs)",
+                  fontSize: "11px",
                   color: "var(--color-primary)",
                   cursor: "pointer",
                   fontWeight: 600,
@@ -259,108 +172,103 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* List */}
-          <div style={{ maxHeight: "350px", overflowY: "auto" }}>
-            {notifications.length === 0 ? (
-              <div
-                style={{
-                  padding: "var(--space-8) var(--space-4)",
-                  textAlign: "center",
-                  color: "var(--color-text-muted)",
-                  fontSize: "var(--font-size-sm)",
-                }}
-              >
+          {/* قائمة التنبيهات السريعة */}
+          <div style={{ maxHeight: "360px", overflowY: "auto" }}>
+            {latestNotifications.length === 0 ? (
+              <div style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>
                 لا توجد إشعارات حالياً
               </div>
             ) : (
-              notifications.map((n) => {
-                const isUnread = !n.readAt;
+              latestNotifications.map((notif) => {
+                const isUnread = !notif.readAt;
                 return (
                   <div
-                    key={n.id}
-                    onClick={() => handleItemClick(n)}
+                    key={notif.id}
+                    onClick={() => handleItemClick(notif)}
                     style={{
                       padding: "var(--space-3) var(--space-4)",
                       borderBottom: "1px solid var(--color-border)",
+                      background: isUnread ? "hsl(215,100%,98%)" : "#fff",
                       cursor: "pointer",
-                      background: isUnread ? "hsl(215, 90%, 98%)" : "transparent",
+                      display: "flex",
+                      gap: "var(--space-3)",
+                      alignItems: "flex-start",
                       transition: "background 150ms",
-                      position: "relative",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-2)" }}>
-                      <div style={{ fontWeight: isUnread ? 700 : 600, fontSize: "var(--font-size-xs)", color: "var(--color-text-primary)" }}>
-                        {n.title}
+                    {/* نقطة التنبيه غير المقروء */}
+                    <div style={{ paddingTop: "6px" }}>
+                      <span
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "var(--radius-full)",
+                          background: isUnread ? "var(--color-primary)" : "transparent",
+                          display: "inline-block",
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "var(--space-2)" }}>
+                        <span style={{ fontSize: "var(--font-size-xs)", fontWeight: isUnread ? 700 : 600, color: "var(--color-text)" }}>
+                          {notif.title}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                          {formatTime(notif.createdAt)}
+                        </span>
                       </div>
-                      {isUnread && (
-                        <span
-                          style={{
-                            width: "8px",
-                            height: "8px",
-                            borderRadius: "50%",
-                            background: "var(--color-primary)",
-                            flexShrink: 0,
-                            marginTop: "4px",
-                          }}
-                        />
-                      )}
+
+                      <p
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--color-text-secondary)",
+                          margin: "2px 0 0 0",
+                          lineHeight: 1.4,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {notif.body}
+                      </p>
                     </div>
-                    <div
-                      style={{
-                        fontSize: "var(--font-size-xs)",
-                        color: "var(--color-text-secondary)",
-                        marginTop: "var(--space-1)",
-                        lineHeight: 1.4,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                      }}
-                    >
-                      {n.body}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "10px",
-                        color: "var(--color-text-muted)",
-                        marginTop: "var(--space-2)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span>{formatTime(n.createdAt)}</span>
-                      {isUnread && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleMarkAsRead(n.id, e)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            fontSize: "10px",
-                            color: "var(--color-primary)",
-                            cursor: "pointer",
-                            padding: 0,
-                          }}
-                        >
-                          تحديد كمقروء
-                        </button>
-                      )}
-                    </div>
+
+                    {isUnread && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(notif.id);
+                        }}
+                        title="تحديد كمقروء"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--color-text-muted)",
+                          padding: "2px",
+                          fontSize: "12px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ✓
+                      </button>
+                    )}
                   </div>
                 );
               })
             )}
           </div>
 
-          {/* Footer */}
+          {/* ذيل القائمة */}
           <div
             style={{
               padding: "var(--space-2) var(--space-4)",
-              textAlign: "center",
               background: "var(--color-bg-secondary)",
               borderTop: "1px solid var(--color-border)",
+              textAlign: "center",
             }}
           >
             <Link
@@ -372,7 +280,7 @@ export default function NotificationBell() {
                 color: "var(--color-primary)",
                 textDecoration: "none",
                 display: "block",
-                padding: "var(--space-1)",
+                padding: "var(--space-1) 0",
               }}
             >
               عرض كافة الإشعارات ←
