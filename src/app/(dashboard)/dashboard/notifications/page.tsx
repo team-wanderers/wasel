@@ -1,7 +1,4 @@
 import { requireUser } from "@/lib/auth";
-import { db } from "@/db";
-import { notifications } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
 import NotificationsManager from "./NotificationsManager";
 
 export const metadata = {
@@ -9,19 +6,14 @@ export const metadata = {
   description: "عرض ومتابعة كافة الإشعارات والتنبيهات",
 };
 
-export default async function NotificationsPage() {
-  const user = await requireUser();
+export const dynamic = "force-dynamic";
 
-  const list = await db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.userId, user.id))
-    .orderBy(desc(notifications.createdAt))
-    .limit(100);
+export default async function NotificationsPage() {
+  await requireUser();
 
   return (
     <div style={{ maxWidth: "800px" }}>
-      <NotificationsManager initialNotifications={list} />
+      <NotificationsManager />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface ClaimFormProps {
   itemType: "lost" | "found";
@@ -10,6 +11,7 @@ interface ClaimFormProps {
 }
 
 export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }: ClaimFormProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [proof, setProof] = useState("");
@@ -71,6 +73,13 @@ export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }
 
       onSuccess?.(data.id, data.status, data.verificationNotes ?? null);
       setOpen(false);
+
+      if (data.status === "verified") {
+        router.push(`/dashboard/recoveries?claimId=${data.id}&action=schedule`);
+      } else {
+        router.push("/dashboard/claims");
+      }
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "فشل الاتصال بالخادم، يرجى المحاولة مرة أخرى");
     } finally {

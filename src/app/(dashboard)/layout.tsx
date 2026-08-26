@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { headers } from "next/headers";
+import { db } from "@/db";
+import { notifications } from "@/db/schema";
+import { eq, and, isNull, count } from "drizzle-orm";
 import NotificationBell from "@/components/NotificationBell";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 const navLinks = [
   { href: "/dashboard", label: "الرئيسية" },
@@ -32,8 +36,16 @@ export default async function DashboardLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") ?? "";
 
+  // جلب عدد الإشعارات غير المقروءة مبدئياً
+  const [unreadRes] = await db
+    .select({ count: count() })
+    .from(notifications)
+    .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)));
+
+  const initialUnreadCount = Number(unreadRes?.count ?? 0);
+
   return (
-    <>
+    <NotificationProvider initialUnreadCount={initialUnreadCount}>
       <nav className="navbar">
         <div className="container navbar-inner">
           <Link href="/" className="navbar-logo">
@@ -98,6 +110,6 @@ export default async function DashboardLayout({
 
         <main className="main-content">{children}</main>
       </div>
-    </>
+    </NotificationProvider>
   );
 }

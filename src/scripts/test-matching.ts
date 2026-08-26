@@ -48,21 +48,21 @@ const scoreB = computeScore(itemLostA, itemFoundB);
 console.log(`   Test Case B (Partial Match): Score = ${scoreB} (${Math.round(scoreB * 100)}%)`);
 console.log(`   Should be in potential range (0.35 - 0.59): ${scoreB >= 0.35 && scoreB < 0.6 ? "PASS (Potential Match)" : "INFO"}`);
 
-// Test Case C: Mismatched category & completely different text
-const itemFoundC = {
-  id: "found-3",
-  userId: "user-4",
-  title: "قطة بيضاء أليفة",
-  description: "قطة صغيرة ضائعة في الحي",
-  category: "pets",
+// Test Case D: Same category & location but completely different titles
+const itemFoundD = {
+  id: "found-4",
+  userId: "user-5",
+  title: "جواز سفر دبلوماسي أزرق",
+  description: "عثر عليه في المطار",
+  category: "documents",
   lat: 14.5372,
   lng: 46.8319,
 };
 
-const scoreC = computeScore(itemLostA, itemFoundC);
-console.log(`   Test Case C (Mismatch): Score = ${scoreC} (${Math.round(scoreC * 100)}%)`);
-console.log(`   Should be rejected (< 0.40): ${scoreC < 0.40 ? "PASS (Ignored)" : "FAIL"}`);
-if (scoreC >= 0.40) throw new Error("Expected score < 0.40 for mismatched items");
+const scoreD = computeScore(itemLostA, itemFoundD);
+console.log(`   Test Case D (Same category/location, different title): Score = ${scoreD} (${Math.round(scoreD * 100)}%)`);
+console.log(`   Must NOT exceed 0.35 without title similarity: ${scoreD <= 0.35 ? "PASS (Low/Capped Score)" : "FAIL"}`);
+if (scoreD > 0.35) throw new Error("Expected score <= 0.35 for items with no title overlap");
 
 console.log("\n=========================================");
 console.log("  ALL CORE VERIFICATION TESTS PASSED!    ");

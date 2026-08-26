@@ -22,9 +22,10 @@ import { normalizeArabic } from "./normalize";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const CATEGORY_WEIGHT  = 0.40;
-const TOKEN_WEIGHT     = 0.35;
-const GEO_WEIGHT       = 0.25;
+const TITLE_WEIGHT     = 0.40;
+const DESC_WEIGHT      = 0.15;
+const CATEGORY_WEIGHT  = 0.25;
+const GEO_WEIGHT       = 0.20;
 
 const MAX_RADIUS_KM    = 50;     // نصف القطر الأقصى للتأثير الجغرافي
 const MATCH_THRESHOLD  = 0.60;  // عتبة إنشاء Match حقيقي + تنبيه
@@ -86,13 +87,13 @@ export function computeScore(lost: LostRow, found: FoundRow): number {
   // 1. تطابق التصنيف
   const catScore = lost.category === found.category ? 1.0 : 0.0;
 
-  // 2. تداخل الكلمات (عنوان + وصف مجتمعَين)
-  const textScore = tokenOverlap(
-    `${lost.title} ${lost.description}`,
-    `${found.title} ${found.description}`,
-  );
+  // 2. تداخل الكلمات في العنوان (Title Similarity)
+  const titleScore = tokenOverlap(lost.title, found.title);
 
-  // 3. القرب الجغرافي
+  // 3. تداخل الكلمات في الوصف (Description Similarity)
+  const descScore = tokenOverlap(lost.description || "", found.description || "");
+
+  // 4. القرب الجغرافي
   let geoScore = 0;
   if (
     lost.lat != null && lost.lng != null &&
@@ -100,17 +101,32 @@ export function computeScore(lost: LostRow, found: FoundRow): number {
   ) {
     const distKm = haversineKm(lost.lat, lost.lng, found.lat, found.lng);
     geoScore = Math.max(0, 1 - distKm / MAX_RADIUS_KM);
-  } else if (catScore === 1.0 && textScore > 0) {
+  } else if (catScore === 1.0 && (titleScore > 0 || descScore > 0)) {
     // درجة جغرافية محايدة في حال عدم وجود إحداثيات ولكن مع تطابق التصنيف والنص
     geoScore = 0.5;
   }
 
-  const score =
-    catScore  * CATEGORY_WEIGHT +
-    textScore * TOKEN_WEIGHT    +
-    geoScore  * GEO_WEIGHT;
+  let rawScore =
+    titleScore * TITLE_WEIGHT +
+    descScore  * DESC_WEIGHT  +
+    catScore   * CATEGORY_WEIGHT +
+    geoScore   * GEO_WEIGHT;
 
-  return Math.round(score * 1000) / 1000; // 3 decimals
+  // تخفيض الوزن واشتراط وجود تشابه نصي لمنع رفع النسبة فوق 35% بمجرد اشتراك المدينة والتصنيف
+  if (titleScore === 0) {
+    if (descScore === 0) {
+      // انعدام التشابه في العنوان والوصف تماماً
+      rawScore = Math.min(rawScore, 0.30);
+    } else if (descScore < 0.20) {
+      // تشابه وصفي ضعيف جداً مع انعدام تشابه العنوان
+      rawScore = Math.min(rawScore, 0.35);
+    } else {
+      // وجود تشابه وصفي مع انعدام تشابه العنوان
+      rawScore = Math.min(rawScore, 0.45);
+    }
+  }
+
+  return Math.round(rawScore * 1000) / 1000; // 3 decimals
 }
 
 // ── Engine Runner ──────────────────────────────────────────────────────────

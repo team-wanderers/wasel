@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { NotificationItem } from "@/components/NotificationBell";
+import { useNotifications, NotificationItem } from "@/context/NotificationContext";
 import {
   IconBell,
   IconCheck,
@@ -11,10 +11,6 @@ import {
   IconShield,
   IconTarget,
 } from "@/components/icons";
-
-interface Props {
-  initialNotifications: NotificationItem[];
-}
 
 type NotificationVisual = {
   icon: React.ReactNode;
@@ -52,23 +48,13 @@ const VISUAL_STYLES = {
   },
 } as const;
 
-export default function NotificationsManager({
-  initialNotifications,
-}: Props) {
+export default function NotificationsManager() {
   const router = useRouter();
-
-  const [list, setList] =
-    useState<NotificationItem[]>(initialNotifications);
-
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [loading, setLoading] = useState(false);
 
-  const unreadCount = list.filter(
-    (notification) => !notification.readAt,
-  ).length;
-
-  const filteredNotifications = list.filter((notification) =>
-    filter === "unread" ? !notification.readAt : true,
+  const filteredNotifications = notifications.filter((notification) =>
+    filter === "unread" ? !notification.readAt : true
   );
 
   function getNotificationVisual(type: string): NotificationVisual {
@@ -110,101 +96,9 @@ export default function NotificationsManager({
     });
   }
 
-  async function handleMarkAsRead(
-    id: string,
-    event?: React.MouseEvent,
-  ) {
-    event?.stopPropagation();
-
-    const target = list.find(
-      (notification) => notification.id === id,
-    );
-
-    if (!target || target.readAt) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: "PATCH",
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      setList((current) =>
-        current.map((notification) =>
-          notification.id === id
-            ? {
-                ...notification,
-                readAt: new Date().toISOString(),
-              }
-            : notification,
-        ),
-      );
-
-      // مهم: مزامنة NotificationBell بعد PR #48
-      window.dispatchEvent(
-        new CustomEvent("notifications-updated"),
-      );
-    } catch (error) {
-      console.error(
-        "Failed to mark notification as read:",
-        error,
-      );
-    }
-  }
-
-  async function handleMarkAllAsRead() {
-    if (unreadCount === 0) {
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        "/api/notifications/read-all",
-        {
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        return;
-      }
-
-      const now = new Date().toISOString();
-
-      setList((current) =>
-        current.map((notification) => ({
-          ...notification,
-          readAt: notification.readAt ?? now,
-        })),
-      );
-
-      // مهم: مزامنة NotificationBell بعد PR #48
-      window.dispatchEvent(
-        new CustomEvent("notifications-updated", {
-          detail: { unreadCount: 0 },
-        }),
-      );
-    } catch (error) {
-      console.error(
-        "Failed to mark all notifications as read:",
-        error,
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleNotificationClick(
-    notification: NotificationItem,
-  ) {
+  function handleNotificationClick(notification: NotificationItem) {
     if (!notification.readAt) {
-      void handleMarkAsRead(notification.id);
+      void markAsRead(notification.id);
     }
 
     if (notification.link) {
@@ -302,12 +196,10 @@ export default function NotificationsManager({
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={handleMarkAllAsRead}
+                onClick={() => markAllAsRead()}
                 disabled={loading}
               >
-                {loading
-                  ? "جارٍ التحديث..."
-                  : "تحديد الكل كمقروء"}
+                {loading ? "جارٍ التحديث..." : "تحديد الكل كمقروء"}
               </button>
             )}
           </div>
@@ -328,21 +220,17 @@ export default function NotificationsManager({
           type="button"
           onClick={() => setFilter("all")}
           className={`btn btn-sm ${
-            filter === "all"
-              ? "btn-primary"
-              : "btn-ghost"
+            filter === "all" ? "btn-primary" : "btn-ghost"
           }`}
         >
-          كافة الإشعارات ({list.length})
+          كافة الإشعارات ({notifications.length})
         </button>
 
         <button
           type="button"
           onClick={() => setFilter("unread")}
           className={`btn btn-sm ${
-            filter === "unread"
-              ? "btn-primary"
-              : "btn-ghost"
+            filter === "unread" ? "btn-primary" : "btn-ghost"
           }`}
         >
           غير المقروءة ({unreadCount})
@@ -404,232 +292,167 @@ export default function NotificationsManager({
         >
           {filteredNotifications.map((notification) => {
             const isUnread = !notification.readAt;
-            const visual = getNotificationVisual(
-              notification.type,
-            );
+            const visual = getNotificationVisual(notification.type);
 
             return (
               <article
                 key={notification.id}
-                onClick={() =>
-                  handleNotificationClick(notification)
-                }
+                onClick={() => handleNotificationClick(notification)}
                 className="card"
                 style={{
-                  cursor: notification.link
-                    ? "pointer"
-                    : "default",
+                  cursor: notification.link ? "pointer" : "default",
                   borderRight: isUnread
                     ? "4px solid var(--color-primary)"
                     : "1px solid var(--color-border)",
-                  background: isUnread
-                    ? "hsl(215, 90%, 99%)"
-                    : "#fff",
+                  background: isUnread ? "hsl(215, 90%, 99%)" : "#fff",
                   padding: "var(--space-5)",
-                  transition:
-                    "box-shadow 150ms ease, border-color 150ms ease",
+                  transition: "box-shadow 150ms, border-color 150ms",
                 }}
               >
                 <div
                   style={{
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: "var(--space-4)",
+                    marginBottom: "var(--space-3)",
                   }}
                 >
                   <div
                     style={{
-                      width: "56px",
-                      height: "56px",
-                      borderRadius: "var(--radius-lg)",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "1.5rem",
-                      flexShrink: 0,
-                      background: visual.iconBackground,
-                      color: visual.iconColor,
-                    }}
-                  >
-                    {visual.icon}
-                  </div>
-
-                  <div
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
+                      gap: "var(--space-3)",
                     }}
                   >
                     <div
                       style={{
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "var(--radius-md)",
+                        background: visual.iconBackground,
+                        color: visual.iconColor,
                         display: "flex",
-                        flexDirection: "column",
-                        gap: "var(--space-2)",
-                        marginBottom: "var(--space-2)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}
                     >
+                      {visual.icon}
+                    </div>
+
+                    <div>
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "var(--space-3)",
-                          flexWrap: "wrap",
+                          gap: "var(--space-2)",
+                          marginBottom: "var(--space-1)",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "var(--space-2)",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <h2
-                            style={{
-                              fontSize: "var(--font-size-lg)",
-                              fontWeight: isUnread
-                                ? 800
-                                : 700,
-                              margin: 0,
-                            }}
-                          >
-                            {notification.title}
-                          </h2>
-
-                          {isUnread && (
-                            <span
-                              style={{
-                                width: "10px",
-                                height: "10px",
-                                borderRadius: "50%",
-                                background:
-                                  "var(--color-primary)",
-                                flexShrink: 0,
-                              }}
-                            />
-                          )}
-                        </div>
-
                         <span
                           style={{
-                            fontSize:
-                              "var(--font-size-xs)",
-                            color:
-                              "var(--color-text-muted)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {formatTime(
-                            notification.createdAt,
-                          )}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            padding: "0.3rem 0.65rem",
-                            borderRadius: "999px",
-                            background:
-                              visual.badgeBackground,
-                            color: visual.badgeColor,
-                            fontSize:
-                              "var(--font-size-xs)",
+                            fontSize: "11px",
                             fontWeight: 700,
+                            padding: "0.2rem 0.6rem",
+                            borderRadius: "999px",
+                            background: visual.badgeBackground,
+                            color: visual.badgeColor,
                           }}
                         >
                           {visual.badge}
                         </span>
-                      </div>
-                    </div>
 
-                    <p
-                      style={{
-                        fontSize:
-                          "var(--font-size-sm)",
-                        color:
-                          "var(--color-text-secondary)",
-                        lineHeight: 1.8,
-                        margin:
-                          "var(--space-3) 0 var(--space-4)",
-                      }}
-                    >
-                      {notification.body}
-                    </p>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent:
-                          "space-between",
-                        gap: "var(--space-3)",
-                        flexWrap: "wrap",
-                        borderTop:
-                          "1px solid var(--color-border)",
-                        paddingTop: "var(--space-3)",
-                      }}
-                    >
-                      <div>
-                        {notification.link && (
-                          <span
-                            style={{
-                              color:
-                                "var(--color-primary)",
-                              fontSize:
-                                "var(--font-size-sm)",
-                              fontWeight: 700,
-                            }}
-                          >
-                            عرض التفاصيل ←
-                          </span>
-                        )}
-                      </div>
-
-                      {isUnread ? (
-                        <button
-                          type="button"
-                          onClick={(event) =>
-                            handleMarkAsRead(
-                              notification.id,
-                              event,
-                            )
-                          }
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color:
-                              "var(--color-text-secondary)",
-                            cursor: "pointer",
-                            textDecoration:
-                              "underline",
-                            fontSize:
-                              "var(--font-size-sm)",
-                            fontWeight: 600,
-                            padding: 0,
-                          }}
-                        >
-                          تحديد كمقروء
-                        </button>
-                      ) : (
                         <span
                           style={{
-                            color:
-                              "var(--color-text-muted)",
-                            fontSize:
-                              "var(--font-size-sm)",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "var(--space-1)",
+                            fontSize: "var(--font-size-xs)",
+                            color: "var(--color-text-muted)",
                           }}
                         >
-                          <IconCheck size={14} /> تمت
-                          القراءة
+                          {formatTime(notification.createdAt)}
                         </span>
-                      )}
+                      </div>
+
+                      <h3
+                        style={{
+                          fontSize: "var(--font-size-base)",
+                          fontWeight: isUnread ? 800 : 700,
+                          margin: 0,
+                        }}
+                      >
+                        {notification.title}
+                      </h3>
                     </div>
+                  </div>
+                </div>
+
+                <p
+                  style={{
+                    fontSize: "var(--font-size-sm)",
+                    color: "var(--color-text-secondary)",
+                    lineHeight: 1.8,
+                    margin: "0 0 var(--space-4) 0",
+                  }}
+                >
+                  {notification.body}
+                </p>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderTop: "1px solid var(--color-border)",
+                    paddingTop: "var(--space-3)",
+                    fontSize: "var(--font-size-xs)",
+                  }}
+                >
+                  <div>
+                    {notification.link && (
+                      <span
+                        style={{
+                          color: "var(--color-primary)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        عرض التفاصيل ←
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    {isUnread ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void markAsRead(notification.id);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--color-text-muted)",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "var(--space-1)",
+                        }}
+                      >
+                        <IconCheck size={14} /> تحديد كمقروء
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          color: "var(--color-text-muted)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "var(--space-1)",
+                        }}
+                      >
+                        <IconCheck size={14} /> مقروء
+                      </span>
+                    )}
                   </div>
                 </div>
               </article>

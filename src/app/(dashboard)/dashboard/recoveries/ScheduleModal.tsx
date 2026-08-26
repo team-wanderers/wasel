@@ -202,6 +202,11 @@ export default function ScheduleModal({
                     {c.itemTitle}
                   </option>
                 ))}
+                {defaultClaimId && !verifiedClaims.some((c) => c.id === defaultClaimId) && (
+                  <option key={defaultClaimId} value={defaultClaimId}>
+                    المطالبة المحددة
+                  </option>
+                )}
               </select>
             </div>
           )}
