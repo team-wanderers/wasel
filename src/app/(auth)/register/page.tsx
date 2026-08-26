@@ -9,6 +9,8 @@ import OtpInput from "@/components/OtpInput";
 
 type Step = "details" | "code";
 
+type ErrorCode = "USER_ALREADY_EXISTS" | null;
+
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("details");
@@ -18,11 +20,12 @@ export default function RegisterPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState<ErrorCode>(null);
 
   function validate(): string {
     if (!name.trim()) return "يرجى إدخال الاسم الكامل";
     if (!email.trim()) return "يرجى إدخال البريد الإلكتروني";
-    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)) {
+    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email.trim())) {
       return "البريد الإلكتروني غير صالح. يرجى إدخاله باللغة الإنجليزية، مثل: example@email.com";
     }
     return "";
@@ -34,14 +37,31 @@ export default function RegisterPage() {
     const validationError = validate();
     if (validationError) {
       setError(validationError);
+      setErrorCode(null);
       return;
     }
 
     setLoading(true);
     setError("");
+    setErrorCode(null);
+
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), mode: "register" }),
+    });
+
+    const data = await res.json().catch(() => ({ ok: false }));
+
+    if (!data.ok) {
+      setLoading(false);
+      setError(data.message ?? "حدث خطأ، حاول مرة أخرى");
+      setErrorCode(data.error === "USER_ALREADY_EXISTS" ? "USER_ALREADY_EXISTS" : null);
+      return;
+    }
 
     const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
-      email,
+      email: email.trim(),
       type: "sign-in",
     });
 
@@ -58,9 +78,10 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setErrorCode(null);
 
     const { error: signInError } = await authClient.signIn.emailOtp({
-      email,
+      email: email.trim(),
       otp: code,
       name: name.trim(),
       phone: phone.trim() || undefined,
@@ -82,7 +103,40 @@ export default function RegisterPage() {
       title="أنشئ حسابك في واصل"
       subtitle="سجّل ببريدك الإلكتروني فقط — سنرسل لك رمز تحقق لتأكيد الحساب."
     >
-      {error && <div className="alert alert-error" style={{ marginBottom: "var(--space-4)" }}>{error}</div>}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "var(--space-4)",
+            padding: "var(--space-3) var(--space-4)",
+            background: "hsl(0,70%,95%)",
+            border: "1px solid hsl(0,65%,82%)",
+            borderRadius: "var(--radius-md)",
+            color: "hsl(0,65%,35%)",
+            fontSize: "var(--font-size-sm)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-2)",
+          }}
+        >
+          <span>{error}</span>
+          {errorCode === "USER_ALREADY_EXISTS" && (
+            <Link
+              href="/login"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--space-1)",
+                fontWeight: 700,
+                color: "hsl(215,80%,40%)",
+                fontSize: "var(--font-size-sm)",
+              }}
+            >
+              الانتقال لتسجيل الدخول ←
+            </Link>
+          )}
+        </div>
+      )}
 
       {step === "details" ? (
         <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
@@ -126,12 +180,8 @@ export default function RegisterPage() {
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "جارٍ الإرسال..." : "إنشاء الحساب"}
+            {loading ? "جارٍ التحقق..." : "إنشاء الحساب"}
           </button>
-
-          <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", textAlign: "center", lineHeight: 1.7 }}>
-            إذا كان لديك حساب بنفس البريد سنقوم بتسجيل دخولك مباشرة.
-          </p>
         </form>
       ) : (
         <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -150,7 +200,7 @@ export default function RegisterPage() {
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => { setStep("details"); setCode(""); setError(""); }}
+            onClick={() => { setStep("details"); setCode(""); setError(""); setErrorCode(null); }}
           >
             تعديل البيانات
           </button>
