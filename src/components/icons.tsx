@@ -166,3 +166,40 @@ export function IconClose(props: IconProps) {
     </Icon>
   );
 }
+
+export function IconTrendingUp(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </Icon>
+  );
+}
+
+export function IconRefresh(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </Icon>
+  );
+}
+
+export function IconLayers(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </Icon>
+  );
+}
+
+export function IconActivity(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </Icon>
+  );
+}

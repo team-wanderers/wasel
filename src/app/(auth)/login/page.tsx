@@ -9,6 +9,8 @@ import OtpInput from "@/components/OtpInput";
 
 type Step = "email" | "code";
 
+type ErrorCode = "USER_NOT_FOUND" | null;
+
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
@@ -16,14 +18,31 @@ export default function LoginPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState<ErrorCode>(null);
 
   async function handleRequestOtp(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setErrorCode(null);
+
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), mode: "login" }),
+    });
+
+    const data = await res.json().catch(() => ({ ok: false }));
+
+    if (!data.ok) {
+      setLoading(false);
+      setError(data.message ?? "حدث خطأ، حاول مرة أخرى");
+      setErrorCode(data.error === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : null);
+      return;
+    }
 
     const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
-      email,
+      email: email.trim(),
       type: "sign-in",
     });
 
@@ -40,9 +59,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setErrorCode(null);
 
     const { error: signInError } = await authClient.signIn.emailOtp({
-      email,
+      email: email.trim(),
       otp: code,
     });
 
@@ -62,7 +82,40 @@ export default function LoginPage() {
       title="مرحباً بعودتك"
       subtitle="أدخل بريدك الإلكتروني وسنرسل لك رمز الدخول — لا حاجة لكلمة مرور."
     >
-      {error && <div className="alert alert-error" style={{ marginBottom: "var(--space-4)" }}>{error}</div>}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "var(--space-4)",
+            padding: "var(--space-3) var(--space-4)",
+            background: "hsl(0,70%,95%)",
+            border: "1px solid hsl(0,65%,82%)",
+            borderRadius: "var(--radius-md)",
+            color: "hsl(0,65%,35%)",
+            fontSize: "var(--font-size-sm)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-2)",
+          }}
+        >
+          <span>{error}</span>
+          {errorCode === "USER_NOT_FOUND" && (
+            <Link
+              href="/register"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--space-1)",
+                fontWeight: 700,
+                color: "hsl(215,80%,40%)",
+                fontSize: "var(--font-size-sm)",
+              }}
+            >
+              إنشاء حساب جديد ←
+            </Link>
+          )}
+        </div>
+      )}
 
       {step === "email" ? (
         <form onSubmit={handleRequestOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
@@ -80,7 +133,7 @@ export default function LoginPage() {
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "جارٍ الإرسال..." : "إرسال رمز التحقق"}
+            {loading ? "جارٍ التحقق..." : "إرسال رمز التحقق"}
           </button>
         </form>
       ) : (
@@ -98,7 +151,7 @@ export default function LoginPage() {
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => { setStep("email"); setCode(""); setError(""); }}
+            onClick={() => { setStep("email"); setCode(""); setError(""); setErrorCode(null); }}
           >
             تغيير البريد
           </button>

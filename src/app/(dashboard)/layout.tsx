@@ -6,6 +6,7 @@ import { notifications } from "@/db/schema";
 import { eq, and, isNull, count } from "drizzle-orm";
 import NotificationBell from "@/components/NotificationBell";
 import { NotificationProvider } from "@/context/NotificationContext";
+import UnauthorizedAdminAlert from "@/components/dashboard/UnauthorizedAdminAlert";
 
 const navLinks = [
   { href: "/dashboard", label: "الرئيسية" },
@@ -13,18 +14,9 @@ const navLinks = [
   { href: "/dashboard/found", label: "ما وجدته" },
   { href: "/dashboard/matches", label: "المطابقات" },
   { href: "/dashboard/claims", label: "مطالباتي" },
-  {
-    href: "/dashboard/recoveries",
-    label: "الاستلام والتسليم",
-  },
-  {
-    href: "/dashboard/notifications",
-    label: "الإشعارات",
-  },
-  {
-    href: "/dashboard/profile",
-    label: "ملفي الشخصي",
-  },
+  { href: "/dashboard/recoveries", label: "الاستلام والتسليم" },
+  { href: "/dashboard/notifications", label: "الإشعارات" },
+  { href: "/dashboard/profile", label: "ملفي الشخصي" },
 ];
 
 export default async function DashboardLayout({
@@ -36,7 +28,6 @@ export default async function DashboardLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") ?? "";
 
-  // جلب عدد الإشعارات غير المقروءة مبدئياً
   const [unreadRes] = await db
     .select({ count: count() })
     .from(notifications)
@@ -73,10 +64,7 @@ export default async function DashboardLayout({
             </Link>
 
             <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="btn btn-ghost btn-sm"
-              >
+              <button type="submit" className="btn btn-ghost btn-sm">
                 خروج
               </button>
             </form>
@@ -84,10 +72,9 @@ export default async function DashboardLayout({
         </div>
       </nav>
 
-      <div
-        className="dashboard-layout container"
-        style={{ maxWidth: "1200px" }}
-      >
+      <UnauthorizedAdminAlert />
+
+      <div className="dashboard-layout container" style={{ maxWidth: "1200px" }}>
         <aside className="sidebar">
           {navLinks.map((link) => (
             <Link
@@ -95,8 +82,7 @@ export default async function DashboardLayout({
               href={link.href}
               className="sidebar-link"
               style={{
-                fontWeight:
-                  pathname === link.href ? 700 : undefined,
+                fontWeight: pathname === link.href ? 700 : undefined,
                 background:
                   pathname === link.href
                     ? "var(--color-primary-light)"
