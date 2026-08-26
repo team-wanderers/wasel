@@ -9,7 +9,7 @@ import OtpInput from "@/components/OtpInput";
 
 type Step = "email" | "code";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -51,16 +51,16 @@ export default function LoginPage() {
     if (signInError) {
       setError(signInError.message ?? "رمز غير صحيح");
     } else {
-      router.push("/dashboard");
+      router.push("/dashboard/profile");
       router.refresh();
     }
   }
 
   return (
     <AuthShell
-      eyebrow="تسجيل الدخول"
-      title="مرحباً بعودتك"
-      subtitle="أدخل بريدك الإلكتروني وسنرسل لك رمز الدخول — لا حاجة لكلمة مرور."
+      eyebrow="استعادة الوصول"
+      title="نسيت طريقة الدخول؟"
+      subtitle="لا نستخدم كلمات مرور — سنرسل رمز دخول جديد إلى بريدك لتستعيد حسابك."
     >
       {error && <div className="alert alert-error" style={{ marginBottom: "var(--space-4)" }}>{error}</div>}
 
@@ -70,29 +70,29 @@ export default function LoginPage() {
             <label className="label" htmlFor="email">البريد الإلكتروني *</label>
             <input
               id="email"
-              type="email"
+              type="text"
+              inputMode="email"
               className="input"
-              placeholder="you@example.com"
+              placeholder="example@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               dir="ltr"
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "جارٍ الإرسال..." : "إرسال رمز التحقق"}
+            {loading ? "جارٍ الإرسال..." : "إرسال رمز الاستعادة"}
           </button>
         </form>
       ) : (
         <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", textAlign: "center" }}>
-            تم إرسال رمز التحقق إلى <strong dir="ltr">{email}</strong>
+            تم إرسال الرمز إلى <strong dir="ltr">{email}</strong>
           </p>
 
           <OtpInput value={code} onChange={setCode} />
 
           <button type="submit" className="btn btn-primary" disabled={loading || code.length !== 6}>
-            {loading ? "جارٍ التحقق..." : "تأكيد الدخول"}
+            {loading ? "جارٍ التحقق..." : "استعادة الحساب"}
           </button>
 
           <button
@@ -110,19 +110,12 @@ export default function LoginPage() {
           marginTop: "var(--space-6)",
           paddingTop: "var(--space-4)",
           borderTop: "1px solid var(--color-border)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--space-2)",
           fontSize: "var(--font-size-sm)",
+          color: "var(--color-text-secondary)",
         }}
       >
-        <span style={{ color: "var(--color-text-secondary)" }}>
-          ليس لديك حساب؟{" "}
-          <Link href="/register" style={{ fontWeight: 700 }}>إنشاء حساب</Link>
-        </span>
-        <Link href="/forgot-password" style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
-          نسيت طريقة الوصول إلى حسابك؟
-        </Link>
+        العودة إلى{" "}
+        <Link href="/login" style={{ fontWeight: 700 }}>تسجيل الدخول</Link>
       </div>
     </AuthShell>
   );

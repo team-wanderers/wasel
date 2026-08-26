@@ -69,7 +69,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
       const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
       markerRef.current = marker;
 
-      marker.bindPopup("📍 حرِّك الدبوس لتحديد الموقع").openPopup();
+      marker.bindPopup("حرِّك الدبوس لتحديد الموقع").openPopup();
 
       marker.on("dragend", () => {
         const pos = marker.getLatLng();

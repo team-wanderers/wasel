@@ -3,143 +3,419 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useNotifications, NotificationItem } from "@/context/NotificationContext";
+import {
+  IconBell,
+  IconCheck,
+  IconInfo,
+  IconPackage,
+  IconShield,
+  IconTarget,
+} from "@/components/icons";
+
+type NotificationVisual = {
+  icon: React.ReactNode;
+  iconBackground: string;
+  iconColor: string;
+  badge: string;
+  badgeBackground: string;
+  badgeColor: string;
+};
+
+const VISUAL_STYLES = {
+  match: {
+    iconBackground: "hsl(210, 70%, 95%)",
+    iconColor: "hsl(210, 60%, 35%)",
+    badgeBackground: "hsl(210, 70%, 95%)",
+    badgeColor: "hsl(210, 60%, 35%)",
+  },
+  claim: {
+    iconBackground: "hsl(38, 90%, 95%)",
+    iconColor: "hsl(38, 80%, 28%)",
+    badgeBackground: "hsl(38, 90%, 95%)",
+    badgeColor: "hsl(38, 80%, 28%)",
+  },
+  recovery: {
+    iconBackground: "hsl(142, 60%, 95%)",
+    iconColor: "hsl(142, 65%, 24%)",
+    badgeBackground: "hsl(142, 60%, 95%)",
+    badgeColor: "hsl(142, 65%, 24%)",
+  },
+  system: {
+    iconBackground: "hsl(270, 70%, 95%)",
+    iconColor: "hsl(270, 55%, 45%)",
+    badgeBackground: "hsl(270, 70%, 95%)",
+    badgeColor: "hsl(270, 55%, 45%)",
+  },
+} as const;
 
 export default function NotificationsManager() {
   const router = useRouter();
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications();
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
-  const filtered = notifications.filter((n) => (filter === "unread" ? !n.readAt : true));
+  const filteredNotifications = notifications.filter((notification) =>
+    filter === "unread" ? !notification.readAt : true
+  );
 
-  function handleItemClick(notif: NotificationItem) {
-    if (!notif.readAt) {
-      markAsRead(notif.id);
-    }
-    if (notif.link) {
-      router.push(notif.link);
-    }
-  }
-
-  function formatTime(dateVal: string | Date) {
-    const d = new Date(dateVal);
-    return d.toLocaleString("ar-YE", { dateStyle: "medium", timeStyle: "short" });
-  }
-
-  function getTypeBadge(type: string) {
+  function getNotificationVisual(type: string): NotificationVisual {
     if (type.startsWith("match")) {
-      return { label: "مطابقة ذكية", bg: "hsl(215,90%,94%)", color: "hsl(215,90%,35%)" };
+      return {
+        icon: <IconTarget size={26} />,
+        ...VISUAL_STYLES.match,
+        badge: "مطابقة ذكية",
+      };
     }
+
     if (type.startsWith("claim")) {
-      return { label: "مطالبة ملكية", bg: "hsl(38,90%,92%)", color: "hsl(38,90%,30%)" };
+      return {
+        icon: <IconShield size={26} />,
+        ...VISUAL_STYLES.claim,
+        badge: "مطالبة ملكية",
+      };
     }
+
     if (type.startsWith("recovery")) {
-      return { label: "استلام وتسليم", bg: "hsl(142,60%,92%)", color: "hsl(142,60%,25%)" };
+      return {
+        icon: <IconPackage size={26} />,
+        ...VISUAL_STYLES.recovery,
+        badge: "استلام وتسليم",
+      };
     }
-    return { label: "نظام", bg: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" };
+
+    return {
+      icon: <IconInfo size={26} />,
+      ...VISUAL_STYLES.system,
+      badge: "النظام",
+    };
+  }
+
+  function formatTime(dateValue: string | Date) {
+    return new Date(dateValue).toLocaleString("ar-YE", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function handleNotificationClick(notification: NotificationItem) {
+    if (!notification.readAt) {
+      void markAsRead(notification.id);
+    }
+
+    if (notification.link) {
+      router.push(notification.link);
+    }
   }
 
   return (
-    <div>
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
-        <div>
-          <h1 className="page-title" style={{ margin: 0 }}>مركز الإشعارات والتنبيهات</h1>
-          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: "var(--space-1)" }}>
-            متابعة تنبيهات المطابقات الذكية، توثيق المطالبات، ومواعيد الاستلام والتسليم
-          </p>
+    <div dir="rtl">
+      {/* Header */}
+      <section style={{ marginBottom: "var(--space-8)" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "var(--space-2)",
+            padding: "0.5rem 0.9rem",
+            borderRadius: "999px",
+            background: "hsl(270, 70%, 95%)",
+            color: "hsl(270, 55%, 45%)",
+            fontSize: "var(--font-size-sm)",
+            fontWeight: 700,
+            marginBottom: "var(--space-4)",
+          }}
+        >
+          <IconBell size={16} /> مركز التنبيهات
         </div>
 
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => markAllAsRead()}
-            disabled={loading}
-          >
-            {loading ? "جارٍ التحديث..." : "تحديد كافة الإشعارات كمقروءة"}
-          </button>
-        )}
-      </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-5)",
+          }}
+        >
+          <div>
+            <h1
+              className="page-title"
+              style={{
+                marginBottom: "var(--space-3)",
+              }}
+            >
+              الإشعارات
+            </h1>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-6)", borderBottom: "1px solid var(--color-border)", paddingBottom: "var(--space-2)" }}>
+            <p
+              style={{
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.9,
+                maxWidth: "720px",
+              }}
+            >
+              تابع آخر التحديثات المتعلقة ببلاغاتك ومطابقاتك
+              ومطالبات الملكية وعمليات الاستلام والتسليم.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              className="card"
+              style={{
+                minWidth: "130px",
+                padding: "var(--space-4)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "var(--font-size-xs)",
+                  color: "var(--color-text-muted)",
+                  marginBottom: "var(--space-1)",
+                }}
+              >
+                غير المقروءة
+              </div>
+
+              <div
+                style={{
+                  fontSize: "1.8rem",
+                  fontWeight: 800,
+                  color: "var(--color-primary)",
+                }}
+              >
+                {unreadCount}
+              </div>
+            </div>
+
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => markAllAsRead()}
+                disabled={loading}
+              >
+                {loading ? "جارٍ التحديث..." : "تحديد الكل كمقروء"}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Filters */}
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--space-2)",
+          marginBottom: "var(--space-6)",
+          borderBottom: "1px solid var(--color-border)",
+          paddingBottom: "var(--space-2)",
+        }}
+      >
         <button
           type="button"
           onClick={() => setFilter("all")}
-          className={`btn btn-sm ${filter === "all" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${
+            filter === "all" ? "btn-primary" : "btn-ghost"
+          }`}
         >
           كافة الإشعارات ({notifications.length})
         </button>
+
         <button
           type="button"
           onClick={() => setFilter("unread")}
-          className={`btn btn-sm ${filter === "unread" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${
+            filter === "unread" ? "btn-primary" : "btn-ghost"
+          }`}
         >
           غير المقروءة ({unreadCount})
         </button>
       </div>
 
-      {/* Notifications List */}
-      {filtered.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "var(--space-12)" }}>
-          <p style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-            {filter === "unread" ? "لا توجد إشعارات غير مقروءة حالياً" : "لا توجد إشعارات مسجلة حتى الآن"}
-          </p>
-          <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-            ستصلك تنبيهات فورية عند ظهور مطابقات جديدة لأغراضك أو تحديث حالة الاستلام
+      {/* Notifications */}
+      {filteredNotifications.length === 0 ? (
+        <div
+          className="card"
+          style={{
+            textAlign: "center",
+            padding: "var(--space-12)",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "var(--space-5)",
+              color: "var(--color-text-muted)",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <IconBell size={56} strokeWidth={1.2} />
+          </div>
+
+          <h2
+            style={{
+              fontSize: "var(--font-size-xl)",
+              fontWeight: 700,
+              marginBottom: "var(--space-2)",
+            }}
+          >
+            {filter === "unread"
+              ? "لا توجد إشعارات غير مقروءة"
+              : "لا توجد إشعارات حتى الآن"}
+          </h2>
+
+          <p
+            style={{
+              fontSize: "var(--font-size-sm)",
+              color: "var(--color-text-secondary)",
+              lineHeight: 1.8,
+              maxWidth: "560px",
+              margin: "0 auto",
+            }}
+          >
+            ستظهر هنا التنبيهات الجديدة المتعلقة بالمطابقات
+            والمطالبات وعمليات الاستلام والتسليم.
           </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          {filtered.map((n) => {
-            const isUnread = !n.readAt;
-            const badge = getTypeBadge(n.type);
+        <section
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-4)",
+          }}
+        >
+          {filteredNotifications.map((notification) => {
+            const isUnread = !notification.readAt;
+            const visual = getNotificationVisual(notification.type);
 
             return (
-              <div
-                key={n.id}
-                onClick={() => handleItemClick(n)}
+              <article
+                key={notification.id}
+                onClick={() => handleNotificationClick(notification)}
                 className="card"
                 style={{
-                  cursor: n.link ? "pointer" : "default",
-                  borderRight: isUnread ? "4px solid var(--color-primary)" : "1px solid var(--color-border)",
+                  cursor: notification.link ? "pointer" : "default",
+                  borderRight: isUnread
+                    ? "4px solid var(--color-primary)"
+                    : "1px solid var(--color-border)",
                   background: isUnread ? "hsl(215, 90%, 99%)" : "#fff",
-                  padding: "var(--space-4)",
+                  padding: "var(--space-5)",
                   transition: "box-shadow 150ms, border-color 150ms",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: "var(--space-4)",
+                    marginBottom: "var(--space-3)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-3)",
+                    }}
+                  >
+                    <div
                       style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        padding: "2px 8px",
-                        borderRadius: "var(--radius-full)",
-                        background: badge.bg,
-                        color: badge.color,
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "var(--radius-md)",
+                        background: visual.iconBackground,
+                        color: visual.iconColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}
                     >
-                      {badge.label}
-                    </span>
-                    <h3 style={{ fontSize: "var(--font-size-base)", fontWeight: isUnread ? 700 : 600, margin: 0 }}>
-                      {n.title}
-                    </h3>
-                  </div>
+                      {visual.icon}
+                    </div>
 
-                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                    {formatTime(n.createdAt)}
-                  </span>
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "var(--space-2)",
+                          marginBottom: "var(--space-1)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "0.2rem 0.6rem",
+                            borderRadius: "999px",
+                            background: visual.badgeBackground,
+                            color: visual.badgeColor,
+                          }}
+                        >
+                          {visual.badge}
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: "var(--font-size-xs)",
+                            color: "var(--color-text-muted)",
+                          }}
+                        >
+                          {formatTime(notification.createdAt)}
+                        </span>
+                      </div>
+
+                      <h3
+                        style={{
+                          fontSize: "var(--font-size-base)",
+                          fontWeight: isUnread ? 800 : 700,
+                          margin: 0,
+                        }}
+                      >
+                        {notification.title}
+                      </h3>
+                    </div>
+                  </div>
                 </div>
 
-                <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "var(--space-2) 0 var(--space-3) 0", lineHeight: 1.6 }}>
-                  {n.body}
+                <p
+                  style={{
+                    fontSize: "var(--font-size-sm)",
+                    color: "var(--color-text-secondary)",
+                    lineHeight: 1.8,
+                    margin: "0 0 var(--space-4) 0",
+                  }}
+                >
+                  {notification.body}
                 </p>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--color-border)", paddingTop: "var(--space-2)", fontSize: "var(--font-size-xs)" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderTop: "1px solid var(--color-border)",
+                    paddingTop: "var(--space-3)",
+                    fontSize: "var(--font-size-xs)",
+                  }}
+                >
                   <div>
-                    {n.link && (
-                      <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>
-                        انتقل للتفاصيل ←
+                    {notification.link && (
+                      <span
+                        style={{
+                          color: "var(--color-primary)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        عرض التفاصيل ←
                       </span>
                     )}
                   </div>
@@ -150,29 +426,39 @@ export default function NotificationsManager() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          markAsRead(n.id);
+                          void markAsRead(notification.id);
                         }}
                         style={{
                           background: "none",
                           border: "none",
                           color: "var(--color-text-muted)",
                           cursor: "pointer",
-                          textDecoration: "underline",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "var(--space-1)",
                         }}
                       >
-                        تحديد كمقروء
+                        <IconCheck size={14} /> تحديد كمقروء
                       </button>
                     ) : (
-                      <span style={{ color: "var(--color-text-muted)" }}>
-                        ✓ مقروء
+                      <span
+                        style={{
+                          color: "var(--color-text-muted)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "var(--space-1)",
+                        }}
+                      >
+                        <IconCheck size={14} /> مقروء
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
-        </div>
+        </section>
       )}
     </div>
   );

@@ -203,26 +203,28 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
       bg = "hsl(38,90%,92%)";
       label = "تطابق محتمل";
     } else if (pct < 80) {
-      color = "var(--color-primary)";
-      bg = "var(--color-primary-light)";
+      color = "hsl(200,80%,35%)";
+      bg = "hsl(200,90%,92%)";
       label = "تطابق جيد";
     }
 
     return { pct, color, bg, label };
   }
 
-  function formatDate(d: Date | string | null) {
-    if (!d) return "غير محدد";
-    return new Date(d).toLocaleDateString("ar-YE", { year: "numeric", month: "short", day: "numeric" });
+  function formatDate(dateVal?: Date | string | null) {
+    if (!dateVal) return "غير محدد";
+    const d = new Date(dateVal);
+    return d.toLocaleDateString("ar-YE", { year: "numeric", month: "short", day: "numeric" });
   }
 
   return (
-    <div>
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
+    <div style={{ maxWidth: "1000px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
         <div>
-          <h1 className="page-title" style={{ margin: 0 }}>المطابقات الذكية المقترحة</h1>
+          <h1 className="page-title" style={{ margin: 0 }}>المطابقات الذكية</h1>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: "var(--space-1)" }}>
-            مراجعة ومقارنة البلاغات المتطابقة بناءً على خوارزميات التشابه الذكي وقبولها أو رفضها
+            مراجعة وتأكيد المطابقات المكتشفة تلقائياً بناءً على الوصف، التصنيف، والموقع الجغرافي
           </p>
         </div>
 
@@ -232,10 +234,11 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
           disabled={running}
           className="btn btn-outline btn-sm"
         >
-          {running ? "جارٍ الفحص والمقارنة..." : "إعادة فحص وتحديث المطابقات"}
+          {running ? "جارٍ الفحص..." : "إعادة تشغيل الفحص الذكي"}
         </button>
       </div>
 
+      {/* Global Message Banner */}
       {message && (
         <div
           style={{
@@ -379,27 +382,24 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
                         color: scoreInfo.color,
                       }}
                     >
-                      {scoreInfo.label}
+                      درجة التطابق:
                     </span>
                     <span
                       style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
                         padding: "2px 8px",
-                        borderRadius: "var(--radius-md)",
+                        borderRadius: "var(--radius-sm)",
+                        fontSize: "var(--font-size-xs)",
+                        fontWeight: 800,
                         background: scoreInfo.bg,
                         color: scoreInfo.color,
-                        fontWeight: 800,
-                        fontSize: "var(--font-size-sm)",
                       }}
                     >
-                      {scoreInfo.pct}% تطابق
+                      {scoreInfo.label} ({Math.round(m.score * 100)}%)
                     </span>
                   </div>
                 </div>
 
-                {/* Side-by-Side Visual Comparison Grid */}
+                {/* Side-by-side Items Comparison */}
                 <div
                   style={{
                     display: "grid",
@@ -416,7 +416,7 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
                           style={{
                             fontSize: "var(--font-size-xs)",
                             fontWeight: 700,
-                            color: "hsl(0,65%,40%)",
+                            color: "hsl(0,70%,40%)",
                             background: "var(--color-danger-light)",
                             padding: "2px 8px",
                             borderRadius: "var(--radius-full)",

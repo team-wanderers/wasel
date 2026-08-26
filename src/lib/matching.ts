@@ -4,8 +4,8 @@
  * يُقارن بلاغات المفقودات بالموجودات ويُنشئ اقتراحات تطابق.
  *
  * درجات المطابقة:
- *   - score >= 0.65 → "suggested" match (يُنشئ سجل + يُرسل تنبيه)
- *   - score 0.35–0.64 → "potential" (يُحفظ بدون تنبيه للعرض في الواجهة)
+ *   - score >= 0.60 → "suggested" match مع تنبيه للطرفين
+ *   - score 0.35–0.59 → تُحفظ كـ"suggested" بدون تنبيه
  *   - score < 0.35 → مُهمَل
  *
  * الأوزان:
@@ -190,7 +190,7 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
           lostItemId: lost.id,
           foundItemId: found.id,
           score,
-          status: score >= MATCH_THRESHOLD ? "suggested" : "suggested",
+          status: "suggested",
         });
         inserted++;
 

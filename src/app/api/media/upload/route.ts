@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
+import { randomUUID } from "crypto";
 import path from "path";
 import { db } from "@/db";
 import { itemMedia } from "@/db/schema";
+import { getSession } from "@/lib/auth";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "يجب تسجيل الدخول لرفع الملفات" },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const lostItemId = formData.get("lostItemId") as string | null;
@@ -15,6 +34,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "لم يتم تحديد أي ملف" }, { status: 400 });
     }
 
+    const ext = ALLOWED_IMAGE_TYPES[file.type];
+    if (!ext) {
+      return NextResponse.json(
+        { error: "نوع الملف غير مدعوم. الصيغ المسموحة: JPG، PNG، WebP، GIF" },
+        { status: 415 }
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "حجم الصورة يتجاوز الحد الأقصى (5 ميغابايت)" },
+        { status: 413 }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -22,8 +56,7 @@ export async function POST(request: NextRequest) {
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
 
-    const ext = path.extname(file.name) || ".jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${ext}`;
+    const filename = `${Date.now()}-${randomUUID()}${ext}`;
     const filePath = path.join(uploadDir, filename);
 
     await writeFile(filePath, buffer);
