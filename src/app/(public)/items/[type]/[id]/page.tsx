@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import {
@@ -179,6 +180,27 @@ async function getCounterpartId(
   return type === "lost"
     ? match.foundItemId
     : match.lostItemId;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ type: string; id: string }>;
+}): Promise<Metadata> {
+  const { type: rawType, id } = await params;
+  if (rawType !== "lost" && rawType !== "found") return {};
+  const item = await getItemById(rawType, id);
+  if (!item) return {};
+  const kind = rawType === "lost" ? "مفقود" : "موجود";
+  const category = categoryLabels[item.category] ?? item.category;
+  const title = `${item.title} — ${kind}`;
+  const description = `${kind} في تصنيف ${category} عبر منصة واصل في عتق وشبوة. ${item.description.slice(0, 140)}`;
+  return {
+    title,
+    description,
+    keywords: [item.title, kind, category, "واصل", "مفقودات", "عتق", "شبوة"],
+    openGraph: { title, description },
+  };
 }
 
 export default async function ItemDetailPage({

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { count, desc, eq } from "drizzle-orm";
@@ -22,6 +23,14 @@ import {
   IconWallet,
   IconWatch,
 } from "@/components/icons";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: "واصل — منصة المفقودات والموجودات في عتق وشبوة",
+  },
+  description:
+    "منصة موحدة للمفقودات والموجودات في عتق ومحافظة شبوة. بلّغ عن مفقوداتك أو ابحث عمّا عُثر عليه.",
+};
 
 function fmt(n: number) {
   return n.toLocaleString("ar-EG");
