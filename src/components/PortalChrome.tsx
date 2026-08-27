@@ -36,8 +36,8 @@ export default async function PortalChrome({ children }: { children: ReactNode }
             <IconMapPin size={22} />
           </span>
           <span>
-            <strong>المفقودات والمعثورات</strong>
-            <small>واصل · خدمة محلية</small>
+            <strong>واصل</strong>
+            <small>خدمة محلية</small>
           </span>
         </Link>
         <PortalNav signedIn={Boolean(session)} />
