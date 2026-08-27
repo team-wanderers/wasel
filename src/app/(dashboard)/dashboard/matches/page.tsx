@@ -18,11 +18,14 @@ export default async function MatchesPage() {
       id: matches.id,
       score: matches.score,
       status: matches.status,
+      lostUserConfirmedAt: matches.lostUserConfirmedAt,
+      foundUserConfirmedAt: matches.foundUserConfirmedAt,
       createdAt: matches.createdAt,
       lostId: lostItems.id,
       lostTitle: lostItems.title,
       lostDescription: lostItems.description,
       lostCategory: lostItems.category,
+      lostStatus: lostItems.status,
       lostLat: lostItems.lat,
       lostLng: lostItems.lng,
       lostAt: lostItems.lostAt,
@@ -31,6 +34,7 @@ export default async function MatchesPage() {
       foundTitle: foundItems.title,
       foundDescription: foundItems.description,
       foundCategory: foundItems.category,
+      foundStatus: foundItems.status,
       foundLat: foundItems.lat,
       foundLng: foundItems.lng,
       foundAt: foundItems.foundAt,
@@ -39,21 +43,7 @@ export default async function MatchesPage() {
     .from(matches)
     .innerJoin(lostItems, eq(matches.lostItemId, lostItems.id))
     .innerJoin(foundItems, eq(matches.foundItemId, foundItems.id))
-    .where(
-      and(
-        or(eq(lostItems.userId, user.id), eq(foundItems.userId, user.id)),
-        // استثناء أي مطابقة مقترحة إذا كان البلاغ المفقود أو المعثور عليه مغلقاً بالفعل (recovered / closed) عبر عملية أخرى
-        or(
-          eq(matches.status, "accepted"),
-          eq(matches.status, "rejected"),
-          eq(matches.status, "expired"),
-          and(
-            eq(lostItems.status, "open"),
-            eq(foundItems.status, "open")
-          )
-        )
-      )
-    )
+    .where(or(eq(lostItems.userId, user.id), eq(foundItems.userId, user.id)))
     .orderBy(desc(matches.createdAt));
 
   const lostIds = Array.from(new Set(rows.map((r) => r.lostId).filter(Boolean)));
@@ -142,6 +132,8 @@ export default async function MatchesPage() {
       id: r.id,
       score: r.score,
       status: r.status as MatchItem["status"],
+      lostUserConfirmedAt: r.lostUserConfirmedAt,
+      foundUserConfirmedAt: r.foundUserConfirmedAt,
       createdAt: r.createdAt,
       claimId: linkedClaim?.id ?? null,
       claimStatus: linkedClaim?.status ?? null,
@@ -152,6 +144,7 @@ export default async function MatchesPage() {
         title: r.lostTitle,
         description: r.lostDescription,
         category: r.lostCategory,
+        status: r.lostStatus,
         lat: r.lostLat,
         lng: r.lostLng,
         lostAt: r.lostAt,
@@ -163,6 +156,7 @@ export default async function MatchesPage() {
         title: r.foundTitle,
         description: r.foundDescription,
         category: r.foundCategory,
+        status: r.foundStatus,
         lat: r.foundLat,
         lng: r.foundLng,
         foundAt: r.foundAt,

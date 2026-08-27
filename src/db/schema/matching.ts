@@ -47,6 +47,8 @@ export const matches = pgTable(
       .references(() => foundItems.id, { onDelete: "cascade" }),
     score: doublePrecision("score").notNull(),
     status: matchStatusEnum("status").notNull().default("suggested"),
+    lostUserConfirmedAt: timestamp("lost_user_confirmed_at", { withTimezone: true }),
+    foundUserConfirmedAt: timestamp("found_user_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

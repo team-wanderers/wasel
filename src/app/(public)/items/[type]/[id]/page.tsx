@@ -2,12 +2,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
 import {
+  claims,
   foundItems,
   itemMedia,
   lostItems,
   matches,
+  recoveries,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import MapViewer from "@/components/MapViewer";
 import ClaimSection from "@/components/ClaimSection";
@@ -17,6 +19,8 @@ import {
   IconLock,
   IconPackage,
   IconShield,
+  IconAlertTriangle,
+  IconCheck,
 } from "@/components/icons";
 
 const categoryLabels: Record<string, string> = {
@@ -46,7 +50,7 @@ const statusLabels: Record<
     className: "badge-claimed",
   },
   recovered: {
-    label: "مُسترجَع",
+    label: "تم الاسترجاع",
     className: "badge-recovered",
   },
   closed: {
@@ -203,6 +207,33 @@ export default async function ItemDetailPage({
   const counterpartId =
     session && !owner
       ? await getCounterpartId(type, id)
+      : null;
+
+  const existingClaim =
+    session && !owner
+      ? await db
+          .select({
+            id: claims.id,
+            status: claims.status,
+            proofDescription: claims.proofDescription,
+            verificationNotes: claims.verificationNotes,
+            createdAt: claims.createdAt,
+            recoveryId: recoveries.id,
+            recoveryStatus: recoveries.status,
+          })
+          .from(claims)
+          .leftJoin(recoveries, eq(claims.id, recoveries.claimId))
+          .where(
+            and(
+              eq(claims.claimantId, session.id),
+              type === "found"
+                ? eq(claims.foundItemId, id)
+                : eq(claims.lostItemId, id),
+            ),
+          )
+          .orderBy(desc(claims.createdAt))
+          .limit(1)
+          .then((res) => res[0] || null)
       : null;
 
   const dateLabel = type === "lost" ? "تاريخ الفقدان" : "تاريخ الإيجاد";
@@ -694,6 +725,46 @@ export default async function ItemDetailPage({
         </section>
 
         {/* Status messages */}
+        {item.status === "closed" && (
+          <div
+            className="alert"
+            style={{
+              marginBottom: "var(--space-6)",
+              background: "hsl(0, 0%, 95%)",
+              borderColor: "hsl(0, 0%, 80%)",
+              color: "hsl(0, 0%, 35%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
+            }}
+          >
+            <IconAlertTriangle size={20} style={{ color: "hsl(0, 0%, 40%)", flexShrink: 0 }} />
+            <div>
+              <strong>هذا البلاغ مغلق وغير متاح حالياً (تمت مراجعته أو إغلاقه من قِبل الإدارة).</strong>
+            </div>
+          </div>
+        )}
+
+        {item.status === "recovered" && (
+          <div
+            className="alert"
+            style={{
+              marginBottom: "var(--space-6)",
+              background: "var(--color-success-light)",
+              borderColor: "hsl(142, 60%, 75%)",
+              color: "hsl(142, 60%, 25%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
+            }}
+          >
+            <IconCheck size={20} style={{ color: "hsl(142, 60%, 35%)", flexShrink: 0 }} />
+            <div>
+              <strong>تم تسليم واسترجاع هذا الغرض بنجاح.</strong>
+            </div>
+          </div>
+        )}
+
         {item.status === "claimed" && (
           <div
             className="alert"
@@ -706,21 +777,6 @@ export default async function ItemDetailPage({
           >
             تم إثبات ملكية هذا الغرض وهو قيد إجراءات التسليم
             والاسترداد. لا يمكن تقديم مطالبات جديدة عليه حاليًا.
-          </div>
-        )}
-
-        {(item.status === "recovered" ||
-          item.status === "closed") && (
-          <div
-            className="alert"
-            style={{
-              marginBottom: "var(--space-6)",
-              background: "var(--color-neutral-light)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            تم تسليم واسترجاع هذا الغرض وإغلاق البلاغ بنجاح.
           </div>
         )}
 
@@ -773,6 +829,7 @@ export default async function ItemDetailPage({
               itemType={type}
               itemId={id}
               counterpartId={counterpartId}
+              existingClaim={existingClaim}
             />
           </section>
         )}
@@ -861,8 +918,7 @@ export default async function ItemDetailPage({
             </span>
           )}
 
-          {(item.status === "recovered" ||
-            item.status === "closed") && (
+          {item.status === "recovered" && (
             <span
               className="badge badge-recovered"
               style={{
@@ -871,7 +927,22 @@ export default async function ItemDetailPage({
                 fontSize: "var(--font-size-sm)",
               }}
             >
-              مسترجع ومغلق
+              تم الاسترجاع
+            </span>
+          )}
+
+          {item.status === "closed" && (
+            <span
+              className="badge badge-closed"
+              style={{
+                padding:
+                  "var(--space-2) var(--space-4)",
+                fontSize: "var(--font-size-sm)",
+                background: "hsl(0, 0%, 90%)",
+                color: "hsl(0, 0%, 40%)",
+              }}
+            >
+              مغلق
             </span>
           )}
 

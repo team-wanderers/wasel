@@ -72,12 +72,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const [existing] = await db
-    .select({ id: lostItems.id })
+    .select({ id: lostItems.id, status: lostItems.status })
     .from(lostItems)
     .where(and(eq(lostItems.id, id), eq(lostItems.userId, session.id)))
     .limit(1);
 
   if (!existing) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+
+  if (existing.status !== "open" && session.role !== "admin") {
+    return NextResponse.json(
+      { error: "لا يمكن تعديل البلاغ لأنه غير متاح للتعديل (مغلق أو مكتمل)." },
+      { status: 403 }
+    );
+  }
 
   const { images, ...fieldsToUpdate } = parsed.data;
   const updateData: Record<string, unknown> = {
@@ -128,12 +135,19 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!session) return NextResponse.json({ error: "غير مصرَّح" }, { status: 401 });
 
   const [existing] = await db
-    .select({ id: lostItems.id, title: lostItems.title })
+    .select({ id: lostItems.id, title: lostItems.title, status: lostItems.status })
     .from(lostItems)
     .where(and(eq(lostItems.id, id), eq(lostItems.userId, session.id)))
     .limit(1);
 
   if (!existing) return NextResponse.json({ error: "غير موجود" }, { status: 404 });
+
+  if (existing.status !== "open" && session.role !== "admin") {
+    return NextResponse.json(
+      { error: "لا يمكن حذف البلاغ لأنه غير متاح للحذف (مغلق أو مكتمل)." },
+      { status: 403 }
+    );
+  }
 
   await db.delete(lostItems).where(eq(lostItems.id, id));
 

@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { IconAlertTriangle } from "@/components/icons";
 
 export interface MatchItem {
   id: string;
   score: number;
   status: "suggested" | "accepted" | "rejected" | "expired";
+  lostUserConfirmedAt?: Date | string | null;
+  foundUserConfirmedAt?: Date | string | null;
   createdAt: Date | string;
   claimId?: string | null;
   claimStatus?: string | null;
@@ -19,6 +22,7 @@ export interface MatchItem {
     title: string;
     description: string;
     category: string;
+    status?: string;
     lat: number | null;
     lng: number | null;
     lostAt: Date | string | null;
@@ -30,6 +34,7 @@ export interface MatchItem {
     title: string;
     description: string;
     category: string;
+    status?: string;
     lat: number | null;
     lng: number | null;
     foundAt: Date | string | null;
@@ -95,22 +100,89 @@ function getValidImageUrl(url?: string | null): string | null {
   return null;
 }
 
-export default function MatchesManager({ initialMatches, currentUserId }: Props) {
+function isItemAdminBlocked(status?: string | null): boolean {
+  if (!status) return false;
+  return ["closed", "flagged", "rejected"].includes(status);
+}
+
+function isMatchAdminBlocked(m: MatchItem): boolean {
+  return isItemAdminBlocked(m.lost?.status) || isItemAdminBlocked(m.found?.status);
+}
+
+function isMatchSuccessfullyRecovered(m: MatchItem): boolean {
+  return m.status === "accepted" && m.recoveryStatus === "completed";
+}
+
+function isMatchSupersededByRecovery(m: MatchItem): boolean {
+  if (isMatchSuccessfullyRecovered(m)) return false;
+  return m.lost?.status === "recovered" || m.found?.status === "recovered";
+}
+
+function areBothItemsOpen(m: MatchItem): boolean {
+  return (m.lost?.status ?? "open") === "open" && (m.found?.status ?? "open") === "open";
+}
+
+function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
   const [matches, setMatches] = useState<MatchItem[]>(initialMatches);
-  const [activeTab, setActiveTab] = useState<"suggested" | "accepted" | "rejected" | "all">("suggested");
+  const [selectedTab, setSelectedTab] = useState<"suggested" | "accepted" | "closed" | "all" | null>(null);
+
+  const activeTab: "suggested" | "accepted" | "closed" | "all" =
+    selectedTab ??
+    (tabParam === "accepted" || tabParam === "closed" || tabParam === "all" || tabParam === "suggested"
+      ? tabParam
+      : "suggested");
+
   const [running, setRunning] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const countSuggested = matches.filter(
+    (m) => m.status === "suggested" && areBothItemsOpen(m)
+  ).length;
+
+  const countAccepted = matches.filter(
+    (m) =>
+      (m.status === "accepted" || (Boolean(m.lostUserConfirmedAt) && Boolean(m.foundUserConfirmedAt))) &&
+      !isMatchAdminBlocked(m) &&
+      !isMatchSuccessfullyRecovered(m) &&
+      !isMatchSupersededByRecovery(m)
+  ).length;
+
+  const countClosed = matches.filter(
+    (m) =>
+      ["rejected", "expired"].includes(m.status) ||
+      isMatchSuccessfullyRecovered(m) ||
+      isMatchSupersededByRecovery(m) ||
+      isMatchAdminBlocked(m)
+  ).length;
+
   const filteredMatches = matches.filter((m) => {
     if (activeTab === "all") return true;
-    return m.status === activeTab;
+    if (activeTab === "suggested") {
+      return m.status === "suggested" && areBothItemsOpen(m);
+    }
+    if (activeTab === "accepted") {
+      return (
+        (m.status === "accepted" || (Boolean(m.lostUserConfirmedAt) && Boolean(m.foundUserConfirmedAt))) &&
+        !isMatchAdminBlocked(m) &&
+        !isMatchSuccessfullyRecovered(m) &&
+        !isMatchSupersededByRecovery(m)
+      );
+    }
+    if (activeTab === "closed") {
+      return (
+        ["rejected", "expired"].includes(m.status) ||
+        isMatchSuccessfullyRecovered(m) ||
+        isMatchSupersededByRecovery(m) ||
+        isMatchAdminBlocked(m)
+      );
+    }
+    return true;
   });
-
-  const countSuggested = matches.filter((m) => m.status === "suggested").length;
-  const countAccepted = matches.filter((m) => m.status === "accepted").length;
-  const countRejected = matches.filter((m) => m.status === "rejected").length;
 
   async function handleRunScan() {
     setRunning(true);
@@ -156,35 +228,43 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
         return;
       }
 
-      setMatches((prev) =>
-        prev.map((m) => (m.id === matchId ? { ...m, status: newStatus } : m))
-      );
-
-      const targetMatch = matches.find((m) => m.id === matchId);
+      if (data.match) {
+        setMatches((prev) =>
+          prev.map((m) => (m.id === matchId ? { ...m, ...data.match } : m))
+        );
+      } else {
+        setMatches((prev) =>
+          prev.map((m) => (m.id === matchId ? { ...m, status: newStatus } : m))
+        );
+      }
 
       if (newStatus === "accepted") {
-        setMessage({
-          type: "success",
-          text: "تم تأكيد وقبول المطابقة بنجاح! جارٍ تحويلك لتقديم إثبات الملكية...",
-        });
-
-        // إذا كان المستخدم هو صاحب المفقود، توجيهه مباشرة إلى صفحة تفاصيل الغرض المعثور عليه لإدخال إثبات الملكية
-        if (targetMatch && targetMatch.lost.userId === currentUserId) {
-          router.push(`/items/found/${targetMatch.found.id}?matchId=${targetMatch.id}`);
-        } else if (targetMatch && targetMatch.found.userId === currentUserId) {
-          router.push("/dashboard/recoveries");
+        setSelectedTab("accepted");
+        router.replace("/dashboard/matches?tab=accepted", { scroll: false });
+        if (data.isDualConfirmed) {
+          setMessage({
+            type: "success",
+            text: "تم تأكيد وقبول المطابقة بين الطرفين بنجاح! يرجى المتابعة لتقديم ومراجعة إثبات الملكية.",
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: data.message || "✓ قمت بتأكيد المطابقة — بانتظار موافقة الطرف الآخر.",
+          });
         }
       } else if (newStatus === "rejected") {
         setMessage({
           type: "success",
-          text: "تم استبعاد المطابقة ووضع علامة مرفوض عليها.",
+          text: data.message || "تم استبعاد المطابقة ووضع علامة مرفوض عليها.",
         });
       } else {
         setMessage({
           type: "success",
-          text: "تمت إعادة المطابقة إلى قائمة المقترحات النشطة.",
+          text: data.message || "تمت إعادة المطابقة إلى قائمة المقترحات النشطة.",
         });
       }
+
+      router.refresh();
     } catch {
       setMessage({ type: "error", text: "حدث خطأ أثناء الاتصال بالخادم" });
     } finally {
@@ -260,28 +340,28 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
       <div style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-6)", borderBottom: "1px solid var(--color-border)", paddingBottom: "var(--space-2)", flexWrap: "wrap" }}>
         <button
           type="button"
-          onClick={() => setActiveTab("suggested")}
+          onClick={() => setSelectedTab("suggested")}
           className={`btn btn-sm ${activeTab === "suggested" ? "btn-primary" : "btn-ghost"}`}
         >
           المقترحة والنشطة ({countSuggested})
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("accepted")}
+          onClick={() => setSelectedTab("accepted")}
           className={`btn btn-sm ${activeTab === "accepted" ? "btn-primary" : "btn-ghost"}`}
         >
           المقبولة ({countAccepted})
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("rejected")}
-          className={`btn btn-sm ${activeTab === "rejected" ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setSelectedTab("closed")}
+          className={`btn btn-sm ${activeTab === "closed" ? "btn-primary" : "btn-ghost"}`}
         >
-          المرفوضة ({countRejected})
+          المنتهية والمغلقة ({countClosed})
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("all")}
+          onClick={() => setSelectedTab("all")}
           className={`btn btn-sm ${activeTab === "all" ? "btn-primary" : "btn-ghost"}`}
         >
           كافة المطابقات ({matches.length})
@@ -296,8 +376,8 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
               ? "لا توجد مطابقات مقترحة جديدة بانتظار مراجعتك حالياً"
               : activeTab === "accepted"
               ? "لا توجد مطابقات مقبولة حالياً"
-              : activeTab === "rejected"
-              ? "لا توجد مطابقات مرفوضة"
+              : activeTab === "closed"
+              ? "لا توجد مطابقات مغلقة أو منتهية"
               : "لا توجد مطابقات مسجلة"}
           </p>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-6)" }}>
@@ -320,16 +400,43 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
             const isMyFound = m.found.userId === currentUserId;
             const isLoading = actionLoading === m.id;
 
+            const isBlocked = isMatchAdminBlocked(m);
+            const isSuccessRecovered = isMatchSuccessfullyRecovered(m);
+            const isSuperseded = isMatchSupersededByRecovery(m);
             const isRejected = m.status === "rejected";
             const isSuggested = m.status === "suggested";
             const isAccepted = m.status === "accepted";
-            const isThisMatchRecovered = isAccepted && m.recoveryStatus === "completed";
-            const isRecoveryActive = isAccepted && m.recoveryStatus && ["scheduled", "in_progress", "deposited"].includes(m.recoveryStatus);
-            const isClaimVerified = isAccepted && m.claimStatus === "verified" && !isThisMatchRecovered && !isRecoveryActive;
 
-            const statusInfo = isThisMatchRecovered
-              ? { label: "تم الاسترجاع", bg: "var(--color-success-light)", color: "hsl(142,60%,25%)" }
-              : statusLabels[m.status] ?? statusLabels.suggested;
+            const myConfirmed = isMyLost ? Boolean(m.lostUserConfirmedAt) : isMyFound ? Boolean(m.foundUserConfirmedAt) : false;
+            const otherConfirmed = isMyLost ? Boolean(m.foundUserConfirmedAt) : isMyFound ? Boolean(m.lostUserConfirmedAt) : false;
+            const isBothConfirmed = isAccepted || (Boolean(m.lostUserConfirmedAt) && Boolean(m.foundUserConfirmedAt));
+            const isAwaitingOtherParty = myConfirmed && !otherConfirmed && !isBothConfirmed && isSuggested;
+            const isAwaitingMyConfirmation = !myConfirmed && otherConfirmed && !isBothConfirmed && isSuggested;
+
+            const isRecoveryActive = !isBlocked && !isSuccessRecovered && !isSuperseded && isBothConfirmed && m.recoveryStatus && ["scheduled", "in_progress", "deposited"].includes(m.recoveryStatus);
+            const isClaimVerified = !isBlocked && !isSuccessRecovered && !isSuperseded && (m.claimStatus === "verified" || m.claimStatus === "approved") && !isRecoveryActive;
+            const isClaimPending = !isBlocked && !isSuccessRecovered && !isSuperseded && m.claimStatus === "pending" && !isRecoveryActive;
+
+            let statusInfo: { label: string; bg: string; color: string };
+            if (isBlocked) {
+              statusInfo = { label: "بلاغ مغلق", bg: "hsl(0, 0%, 90%)", color: "hsl(0, 0%, 40%)" };
+            } else if (isSuccessRecovered) {
+              statusInfo = { label: "تم الاسترجاع", bg: "var(--color-success-light)", color: "hsl(142, 60%, 25%)" };
+            } else if (isSuperseded) {
+              statusInfo = { label: "ملغية — تم استرجاع الغرض مسبقاً", bg: "hsl(0, 0%, 93%)", color: "hsl(0, 0%, 40%)" };
+            } else if (isRejected) {
+              statusInfo = { label: "مطابقة مرفوضة", bg: "hsl(0, 0%, 93%)", color: "hsl(0, 0%, 40%)" };
+            } else if (m.status === "expired") {
+              statusInfo = { label: "مطابقة منتهية", bg: "hsl(0, 0%, 93%)", color: "hsl(0, 0%, 40%)" };
+            } else if (isBothConfirmed) {
+              statusInfo = { label: "✓ تم قبول وتأكيد المطابقة بين الطرفين", bg: "var(--color-success-light)", color: "hsl(142, 60%, 25%)" };
+            } else if (isAwaitingOtherParty) {
+              statusInfo = { label: "بانتظار موافقة الطرف الآخر", bg: "hsl(215, 90%, 95%)", color: "hsl(215, 90%, 35%)" };
+            } else if (isAwaitingMyConfirmation) {
+              statusInfo = { label: "بانتظار تأكيدك", bg: "hsl(35, 95%, 93%)", color: "hsl(35, 90%, 35%)" };
+            } else {
+              statusInfo = statusLabels[m.status] ?? statusLabels.suggested;
+            }
 
             return (
               <div
@@ -630,148 +737,288 @@ export default function MatchesManager({ initialMatches, currentUserId }: Props)
                 </div>
 
                 {/* Interactive Action Toolbar */}
-                <div
-                  style={{
-                    padding: "var(--space-4) var(--space-5)",
-                    background: "#fff",
-                    borderTop: "1px solid var(--color-border)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "var(--space-3)",
-                  }}
-                >
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                    {isRejected ? (
-                      <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>
-                        ✕ تم استبعاد هذه المطابقة
-                      </span>
-                    ) : isThisMatchRecovered ? (
-                      <span style={{ color: "hsl(142,60%,25%)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
-                        <span>✓</span> تم الاسترجاع وإغلاق البلاغ بنجاح
-                      </span>
-                    ) : isRecoveryActive ? (
-                      <span style={{ color: "hsl(215,90%,35%)", fontWeight: 600 }}>
-                        {m.recoveryStatus === "deposited"
-                          ? "الغرض مودع في نقطة الأمانة وبانتظار استلام المالك"
-                          : "تمت جدولة موعد الاستلام والتسليم"}
-                      </span>
-                    ) : isClaimVerified ? (
-                      <span style={{ color: "hsl(142,60%,25%)", fontWeight: 600 }}>
-                        ✓ تم إثبات وتوثيق الملكية بنجاح — جاهز للجدولة
-                      </span>
-                    ) : isAccepted ? (
-                      <span style={{ color: "hsl(142,60%,25%)", fontWeight: 600 }}>
-                        ✓ تم قبول هذه المطابقة وتأكيدها بين الطرفين
-                      </span>
-                    ) : (
-                      <span>
-                        هل هذا هو الغرض المطابق لبلاغك؟
-                      </span>
-                    )}
+                {isBlocked ? (
+                  <div
+                    style={{
+                      padding: "var(--space-4) var(--space-5)",
+                      background: "hsl(0, 0%, 97%)",
+                      borderTop: "1px solid var(--color-border)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-2)",
+                      width: "100%",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "var(--space-2)",
+                        padding: "var(--space-2) var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        background: "hsl(0, 0%, 93%)",
+                        border: "1px solid hsl(0, 0%, 82%)",
+                        color: "hsl(0, 0%, 35%)",
+                        fontSize: "var(--font-size-sm)",
+                        fontWeight: 600,
+                        width: "100%",
+                      }}
+                    >
+                      <IconAlertTriangle size={18} style={{ color: "hsl(0, 0%, 40%)", flexShrink: 0 }} />
+                      <span>تم إغلاق البلاغ المرتبط من قِبل الإدارة — تم إيقاف إجراءات الاسترجاع.</span>
+                    </div>
                   </div>
+                ) : isSuperseded ? (
+                  <div
+                    style={{
+                      padding: "var(--space-4) var(--space-5)",
+                      background: "hsl(0, 0%, 97%)",
+                      borderTop: "1px solid var(--color-border)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-2)",
+                      width: "100%",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "var(--space-2)",
+                        padding: "var(--space-2) var(--space-4)",
+                        borderRadius: "var(--radius-md)",
+                        background: "hsl(0, 0%, 93%)",
+                        border: "1px solid hsl(0, 0%, 82%)",
+                        color: "hsl(0, 0%, 40%)",
+                        fontSize: "var(--font-size-sm)",
+                        fontWeight: 500,
+                        width: "100%",
+                      }}
+                    >
+                      <span>تم استرجاع هذا الغرض مسبقاً — تم إيقاف هذا المقترح تلقائياً.</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "var(--space-4) var(--space-5)",
+                      background: "#fff",
+                      borderTop: "1px solid var(--color-border)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "var(--space-3)",
+                    }}
+                  >
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
+                      {isRejected ? (
+                        <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>
+                          ✕ تم استبعاد هذه المطابقة
+                        </span>
+                      ) : isSuccessRecovered ? (
+                        <span style={{ color: "hsl(142,60%,25%)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                          <span>✓</span> تم الاسترجاع وإغلاق البلاغ بنجاح
+                        </span>
+                      ) : isRecoveryActive ? (
+                        <span style={{ color: "hsl(215,90%,35%)", fontWeight: 600 }}>
+                          {m.recoveryStatus === "deposited"
+                            ? "الغرض مودع في نقطة الأمانة وبانتظار استلام المالك"
+                            : "تمت جدولة موعد الاستلام والتسليم"}
+                        </span>
+                      ) : isClaimVerified ? (
+                        <span style={{ color: "hsl(142,60%,25%)", fontWeight: 600 }}>
+                          ✓ تم إثبات وتوثيق الملكية بنجاح — جاهز للجدولة
+                        </span>
+                      ) : isClaimPending ? (
+                        <span style={{ color: "hsl(200,60%,30%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                          <span>⏳</span> {isMyLost ? "تم إرسال إثبات الملكية — بانتظار مراجعة الملتقط" : "تلقيت إثبات ملكية جديد — يرجى مراجعته واعتماده"}
+                        </span>
+                      ) : isBothConfirmed ? (
+                        <span style={{ color: isMyFound ? "var(--color-text-secondary)" : "hsl(142,60%,25%)", fontWeight: 600 }}>
+                          {isMyFound
+                            ? "⏳ بانتظار قيام الفاقد بتقديم إثبات الملكية والعلامات المميزة للمراجعة."
+                            : "✓ تم قبول وتأكيد المطابقة — يرجى تقديم إثبات الملكية"}
+                        </span>
+                      ) : isAwaitingOtherParty ? (
+                        <span style={{ color: "hsl(215,90%,35%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                          <span>✓</span> قمت بتأكيد المطابقة — بانتظار موافقة الطرف الآخر
+                        </span>
+                      ) : isAwaitingMyConfirmation ? (
+                        <span style={{ color: "hsl(35,90%,35%)", fontWeight: 600 }}>
+                          قام الطرف الآخر بتأكيد المطابقة — بانتظار موافقتك
+                        </span>
+                      ) : (
+                        <span>
+                          هل هذا هو الغرض المطابق لبلاغك؟
+                        </span>
+                      )}
+                    </div>
 
-                  <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-                    {/* 1. Rejected Match - No scheduling or recovery buttons ever */}
-                    {isRejected ? (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(m.id, "suggested")}
-                        disabled={isLoading}
-                        className="btn btn-outline btn-sm"
-                      >
-                        إعادة المطابقة للمقترحات النشطة
-                      </button>
-                    ) : isThisMatchRecovered ? (
-                      /* 2. Recovery Completed */
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: "hsl(142,60%,25%)",
-                          background: "var(--color-success-light)",
-                          padding: "4px 10px",
-                          borderRadius: "var(--radius-full)",
-                          border: "1px solid hsl(142,60%,35%)33",
-                        }}
-                      >
-                        ✓ تم الاسترجاع بنجاح
-                      </span>
-                    ) : isRecoveryActive ? (
-                      /* 3. Active Recovery / Scheduled */
-                      <Link
-                        href="/dashboard/recoveries"
-                        className="btn btn-primary btn-sm"
-                      >
-                        متابعة حالة التسليم ←
-                      </Link>
-                    ) : isClaimVerified ? (
-                      /* 4. Verified Claim & Ready for Scheduling */
-                      <Link
-                        href={m.claimId ? `/dashboard/recoveries?claimId=${m.claimId}&action=schedule` : "/dashboard/recoveries?action=schedule"}
-                        className="btn btn-primary btn-sm"
-                      >
-                        جدولة موعد الاستلام ←
-                      </Link>
-                    ) : isAccepted ? (
-                      /* 5. Accepted but Claim Not Yet Verified */
-                      <>
-                        {isMyLost ? (
-                          <Link
-                            href={`/items/found/${m.found.id}?matchId=${m.id}`}
-                            className="btn btn-primary btn-sm"
-                          >
-                            متابعة تقديم إثبات الملكية ←
-                          </Link>
-                        ) : (
-                          <Link
-                            href="/dashboard/recoveries"
-                            className="btn btn-primary btn-sm"
-                          >
-                            الانتقال لجدولة التسليم ←
-                          </Link>
-                        )}
+                    <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
+                      {/* 1. Rejected Match */}
+                      {isRejected ? (
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(m.id, "rejected")}
-                          disabled={isLoading}
-                          className="btn btn-ghost btn-sm"
-                          style={{ color: "var(--color-text-muted)", fontSize: "11px" }}
-                        >
-                          تراجع وإلغاء القبول
-                        </button>
-                      </>
-                    ) : isSuggested ? (
-                      /* 6. Suggested Match */
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(m.id, "rejected")}
+                          onClick={() => handleUpdateStatus(m.id, "suggested")}
                           disabled={isLoading}
                           className="btn btn-outline btn-sm"
-                          style={{ color: "var(--color-text-muted)", borderColor: "var(--color-border)" }}
                         >
-                          {isLoading ? "جارٍ الحفظ..." : "ليس هذا الغرض / استبعاد"}
+                          إعادة المطابقة للمقترحات النشطة
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(m.id, "accepted")}
-                          disabled={isLoading}
+                      ) : isSuccessRecovered ? (
+                        /* 2. Recovery Completed */
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color: "hsl(142,60%,25%)",
+                            background: "var(--color-success-light)",
+                            padding: "4px 10px",
+                            borderRadius: "var(--radius-full)",
+                            border: "1px solid hsl(142,60%,35%)33",
+                          }}
+                        >
+                          ✓ تم الاسترجاع بنجاح
+                        </span>
+                      ) : isRecoveryActive ? (
+                        /* 3. Active Recovery / Scheduled */
+                        <Link
+                          href="/dashboard/recoveries"
                           className="btn btn-primary btn-sm"
                         >
-                          {isLoading ? "جارٍ الحفظ..." : "تأكيد وقبول المطابقة ✓"}
-                        </button>
-                      </>
-                    ) : null}
+                          عرض تفاصيل الاستلام والرمز (OTP) ←
+                        </Link>
+                      ) : isClaimVerified ? (
+                        /* 4. Verified Claim & Ready for Scheduling */
+                        <Link
+                          href={m.claimId ? `/dashboard/recoveries?claimId=${m.claimId}&action=schedule` : `/dashboard/recoveries?matchId=${m.id}&action=schedule`}
+                          className="btn btn-primary btn-sm"
+                        >
+                          الانتقال لجدولة موعد الاستلام ←
+                        </Link>
+                      ) : isClaimPending ? (
+                        /* 4.5. Claim Pending: loser sees status badge, finder sees review button */
+                        <>
+                          {isMyLost ? (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "hsl(200,60%,30%)",
+                                background: "hsl(200,60%,96%)",
+                                padding: "4px 10px",
+                                borderRadius: "var(--radius-full)",
+                                border: "1px solid hsl(200,60%,80%)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              ⏳ تم إرسال إثبات الملكية — بانتظار مراجعة الملتقط
+                            </span>
+                          ) : (
+                            <Link
+                              href="/dashboard/claims"
+                              className="btn btn-primary btn-sm"
+                            >
+                              مراجعة إثبات الملكية المقدم ←
+                            </Link>
+                          )}
+                        </>
+                      ) : isBothConfirmed ? (
+                        /* 5. Both confirmed: loser sees "تقديم إثبات الملكية", finder sees "⏳ بانتظار قيام الفاقد بتقديم إثبات الملكية والعلامات المميزة للمراجعة." */
+                        <>
+                          {isMyLost ? (
+                            <Link
+                              href={`/items/found/${m.found.id}?matchId=${m.id}`}
+                              className="btn btn-primary btn-sm"
+                            >
+                              تقديم إثبات الملكية (العلامات السرية) ←
+                            </Link>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--color-text-secondary)",
+                                background: "var(--color-bg-secondary)",
+                                padding: "6px 12px",
+                                borderRadius: "var(--radius-full)",
+                                border: "1px solid var(--color-border)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              ⏳ بانتظار قيام الفاقد بتقديم إثبات الملكية والعلامات المميزة للمراجعة.
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(m.id, "rejected")}
+                            disabled={isLoading}
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: "var(--color-text-muted)", fontSize: "11px" }}
+                          >
+                            تراجع وإلغاء القبول
+                          </button>
+                        </>
+                      ) : isAwaitingOtherParty ? (
+                        /* 6. Current user confirmed, waiting for other party */
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(m.id, "suggested")}
+                            disabled={isLoading}
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: "var(--color-text-muted)", fontSize: "12px" }}
+                          >
+                            {isLoading ? "جارٍ الحفظ..." : "تراجع عن التأكيد"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(m.id, "rejected")}
+                            disabled={isLoading}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: "var(--color-text-muted)", borderColor: "var(--color-border)" }}
+                          >
+                            {isLoading ? "جارٍ الحفظ..." : "استبعاد المطابقة"}
+                          </button>
+                        </>
+                      ) : (isAwaitingMyConfirmation || isSuggested) ? (
+                        /* 7. Needs current user confirmation */
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(m.id, "rejected")}
+                            disabled={isLoading}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: "var(--color-text-muted)", borderColor: "var(--color-border)" }}
+                          >
+                            {isLoading ? "جارٍ الحفظ..." : "ليس هذا الغرض / استبعاد"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(m.id, "accepted")}
+                            disabled={isLoading}
+                            className="btn btn-primary btn-sm"
+                          >
+                            {isLoading ? "جارٍ الحفظ..." : "تأكيد وقبول المطابقة ✓"}
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
     </div>
+  );
+}
+
+export default function MatchesManager(props: Props) {
+  return (
+    <Suspense fallback={<div className="card" style={{ textAlign: "center", padding: "var(--space-12)", color: "var(--color-text-muted)" }}>جارٍ تحميل المطابقات...</div>}>
+      <MatchesManagerInner {...props} />
+    </Suspense>
   );
 }

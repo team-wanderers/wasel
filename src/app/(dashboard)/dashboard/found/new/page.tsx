@@ -39,29 +39,35 @@ export default function NewFoundItemPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     if (!form.category) { setError("يرجى اختيار تصنيف الغرض"); return; }
     setLoading(true); setError("");
 
-    const res = await fetch("/api/found", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        lat,
-        lng,
-        foundAt: form.foundAt ? new Date(form.foundAt).toISOString() : null,
-        images: uploadedImages.map((img) => ({ path: img.path })),
-      }),
-    });
+    try {
+      const res = await fetch("/api/found", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          lat,
+          lng,
+          foundAt: form.foundAt ? new Date(form.foundAt).toISOString() : null,
+          images: uploadedImages.map((img) => ({ path: img.path })),
+        }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error ?? "حدث خطأ أثناء تسجيل الغرض");
-    } else {
-      router.push("/dashboard/found");
-      router.refresh();
+      if (!res.ok) {
+        setError(data.error ?? "حدث خطأ أثناء تسجيل الغرض");
+        setLoading(false);
+      } else {
+        router.push("/dashboard/found");
+        router.refresh();
+      }
+    } catch {
+      setError("تعذر الاتصال بالخادم، حاول مرة أخرى");
+      setLoading(false);
     }
   }
 
@@ -145,7 +151,14 @@ export default function NewFoundItemPage() {
         <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "flex-end" }}>
           <button type="button" className="btn btn-ghost" onClick={() => router.back()}>إلغاء</button>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "جارٍ الحفظ..." : "تسجيل الغرض"}
+            {loading ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                جاري النشر...
+              </span>
+            ) : "تسجيل الغرض"}
           </button>
         </div>
       </form>

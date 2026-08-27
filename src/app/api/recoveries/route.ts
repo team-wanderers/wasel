@@ -42,8 +42,10 @@ export async function GET() {
         lostItemId: claims.lostItemId,
         foundItemId: claims.foundItemId,
         lostTitle: lostItems.title,
+        lostStatus: lostItems.status,
         lostUserId: lostItems.userId,
         foundTitle: foundItems.title,
+        foundStatus: foundItems.status,
         foundUserId: foundItems.userId,
       })
       .from(recoveries)

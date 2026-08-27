@@ -14,6 +14,7 @@ export interface PickupPoint {
 export interface VerifiedClaim {
   id: string;
   itemTitle: string;
+  matchId?: string | null;
   lostItemId: string | null;
   foundItemId: string | null;
 }

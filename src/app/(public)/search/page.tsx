@@ -4,19 +4,33 @@ import { lostItems, foundItems } from "@/db/schema";
 import { eq, or, ilike, and } from "drizzle-orm";
 
 const categoryLabels: Record<string, string> = {
-  documents: "وثائق", electronics: "إلكترونيات", keys: "مفاتيح",
-  bags: "حقائب", jewelry: "مجوهرات", pets: "حيوانات", other: "أخرى",
+  documents: "وثائق",
+  electronics: "إلكترونيات",
+  keys: "مفاتيح",
+  bags: "حقائب",
+  jewelry: "مجوهرات",
+  pets: "حيوانات",
+  other: "أخرى",
 };
 
 const categories = Object.entries(categoryLabels);
 
 const statusOptions = [
-  { value: "",          label: "جميع الحالات" },
-  { value: "open",      label: "مفتوح" },
+  { value: "open",      label: "مفتوح (نشط)" },
   { value: "matched",   label: "مطابَق" },
   { value: "claimed",   label: "مطالَب به" },
   { value: "recovered", label: "مُسترجَع" },
+  { value: "closed",    label: "مغلق / الأرشيف" },
+  { value: "all",       label: "جميع الحالات" },
 ];
+
+const statusBadgeLabels: Record<ItemStatus, string> = {
+  open: "مفتوح",
+  matched: "مطابَق",
+  claimed: "مطالَب به",
+  recovered: "مُسترجَع",
+  closed: "مغلق",
+};
 
 type ItemCategory = "documents" | "electronics" | "keys" | "bags" | "jewelry" | "pets" | "other";
 type ItemStatus   = "open" | "matched" | "claimed" | "recovered" | "closed";
@@ -42,9 +56,15 @@ export default async function SearchPage({
   const showFound = !type || type === "found";
 
   const validStatuses: ItemStatus[] = ["open", "matched", "claimed", "recovered", "closed"];
-  const statusFilter = status && validStatuses.includes(status as ItemStatus)
-    ? status as ItemStatus
-    : undefined;
+
+  // Default to "open" items if no status or empty status is specified
+  const effectiveStatus = status && (status === "all" || validStatuses.includes(status as ItemStatus))
+    ? status
+    : "open";
+
+  const statusFilter = effectiveStatus === "all"
+    ? undefined
+    : (effectiveStatus as ItemStatus);
 
   const validCategories: ItemCategory[] = ["documents", "electronics", "keys", "bags", "jewelry", "pets", "other"];
   const categoryFilter = category && validCategories.includes(category as ItemCategory)
@@ -55,9 +75,13 @@ export default async function SearchPage({
     showLost
       ? db
           .select({
-            id: lostItems.id, title: lostItems.title, description: lostItems.description,
-            category: lostItems.category, status: lostItems.status,
-            lostAt: lostItems.lostAt, createdAt: lostItems.createdAt,
+            id: lostItems.id,
+            title: lostItems.title,
+            description: lostItems.description,
+            category: lostItems.category,
+            status: lostItems.status,
+            lostAt: lostItems.lostAt,
+            createdAt: lostItems.createdAt,
           })
           .from(lostItems)
           .where(
@@ -72,9 +96,13 @@ export default async function SearchPage({
     showFound
       ? db
           .select({
-            id: foundItems.id, title: foundItems.title, description: foundItems.description,
-            category: foundItems.category, status: foundItems.status,
-            foundAt: foundItems.foundAt, createdAt: foundItems.createdAt,
+            id: foundItems.id,
+            title: foundItems.title,
+            description: foundItems.description,
+            category: foundItems.category,
+            status: foundItems.status,
+            foundAt: foundItems.foundAt,
+            createdAt: foundItems.createdAt,
           })
           .from(foundItems)
           .where(
@@ -94,14 +122,20 @@ export default async function SearchPage({
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   function buildUrl(overrides: Partial<Record<string, string>>) {
-    const p = new URLSearchParams({
-      ...(q        ? { q }        : {}),
-      ...(type     ? { type }     : {}),
-      ...(category ? { category } : {}),
-      ...(status   ? { status }   : {}),
-      ...overrides,
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (type) p.set("type", type);
+    if (category) p.set("category", category);
+    if (status && status !== "open") p.set("status", status);
+
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (!v || (k === "status" && v === "open")) {
+        p.delete(k);
+      } else {
+        p.set(k, v);
+      }
     });
-    Object.keys(overrides).forEach((k) => { if (!overrides[k]) p.delete(k); });
+
     const str = p.toString();
     return `/search${str ? `?${str}` : ""}`;
   }
@@ -116,14 +150,16 @@ export default async function SearchPage({
           </h1>
           <form method="GET" style={{ display: "flex", gap: "var(--space-3)", maxWidth: "600px", margin: "0 auto" }}>
             <input
-              name="q" type="search" className="input"
+              name="q"
+              type="search"
+              className="input"
               placeholder="ابحث بالكلمات..."
               defaultValue={q ?? ""}
               style={{ flex: 1, background: "#fff" }}
             />
             {category && <input type="hidden" name="category" value={category} />}
             {type     && <input type="hidden" name="type"     value={type} />}
-            {status   && <input type="hidden" name="status"   value={status} />}
+            {status   && status !== "open" && <input type="hidden" name="status" value={status} />}
             <button type="submit" className="btn btn-primary" style={{ background: "#fff", color: "var(--color-primary)" }}>
               بحث
             </button>
@@ -152,15 +188,18 @@ export default async function SearchPage({
           {/* الحالة */}
           <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: "60px" }}>الحالة:</span>
-            {statusOptions.map((s) => (
-              <Link
-                key={s.value}
-                href={buildUrl({ status: s.value })}
-                className={`btn btn-sm ${(status ?? "") === s.value ? "btn-primary" : "btn-ghost"}`}
-              >
-                {s.label}
-              </Link>
-            ))}
+            {statusOptions.map((s) => {
+              const isSelected = effectiveStatus === s.value;
+              return (
+                <Link
+                  key={s.value}
+                  href={buildUrl({ status: s.value })}
+                  className={`btn btn-sm ${isSelected ? "btn-primary" : "btn-ghost"}`}
+                >
+                  {s.label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* التصنيف */}
@@ -185,6 +224,7 @@ export default async function SearchPage({
         <p style={{ color: "var(--color-text-secondary)", marginBottom: "var(--space-6)", fontSize: "var(--font-size-sm)" }}>
           {allResults.length === 0 ? "لا توجد نتائج" : `${allResults.length} نتيجة`}
           {q && ` لـ "${q}"`}
+          {effectiveStatus !== "open" && ` • فلتر الحالة: ${statusOptions.find((o) => o.value === effectiveStatus)?.label || effectiveStatus}`}
         </p>
 
         {/* Results */}
@@ -203,16 +243,41 @@ export default async function SearchPage({
                   <div style={{ display: "flex", gap: "var(--space-2)" }}>
                     <span
                       style={{
-                        padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-full)",
-                        fontSize: "var(--font-size-xs)", fontWeight: 600,
+                        padding: "var(--space-1) var(--space-2)",
+                        borderRadius: "var(--radius-full)",
+                        fontSize: "var(--font-size-xs)",
+                        fontWeight: 600,
                         background: item.itemType === "lost" ? "var(--color-danger-light)" : "var(--color-success-light)",
                         color: item.itemType === "lost" ? "hsl(0,65%,35%)" : "hsl(142,60%,25%)",
                       }}
                     >
                       {item.itemType === "lost" ? "مفقود" : "موجود"}
                     </span>
-                    <span style={{ padding: "var(--space-1) var(--space-2)", borderRadius: "var(--radius-full)", fontSize: "var(--font-size-xs)", background: "var(--color-bg-secondary)", color: "var(--color-text-secondary)" }}>
-                      {{ open: "مفتوح", matched: "مطابَق", claimed: "مطالَب", recovered: "مُسترجَع", closed: "مغلق" }[item.status]}
+                    <span
+                      style={{
+                        padding: "var(--space-1) var(--space-2)",
+                        borderRadius: "var(--radius-full)",
+                        fontSize: "var(--font-size-xs)",
+                        fontWeight: 500,
+                        background:
+                          item.status === "open"
+                            ? "hsl(215,90%,94%)"
+                            : item.status === "recovered"
+                            ? "var(--color-success-light)"
+                            : item.status === "closed"
+                            ? "hsl(0,70%,94%)"
+                            : "var(--color-bg-secondary)",
+                        color:
+                          item.status === "open"
+                            ? "hsl(215,90%,35%)"
+                            : item.status === "recovered"
+                            ? "hsl(142,60%,25%)"
+                            : item.status === "closed"
+                            ? "hsl(0,65%,35%)"
+                            : "var(--color-text-secondary)",
+                      }}
+                    >
+                      {statusBadgeLabels[item.status] ?? item.status}
                     </span>
                   </div>
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>

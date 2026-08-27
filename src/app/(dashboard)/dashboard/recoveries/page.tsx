@@ -29,8 +29,10 @@ export default async function RecoveriesPage() {
       lostItemId: claims.lostItemId,
       foundItemId: claims.foundItemId,
       lostTitle: lostItems.title,
+      lostStatus: lostItems.status,
       lostUserId: lostItems.userId,
       foundTitle: foundItems.title,
+      foundStatus: foundItems.status,
       foundUserId: foundItems.userId,
     })
     .from(recoveries)
@@ -60,14 +62,22 @@ export default async function RecoveriesPage() {
     .where(eq(pickupPoints.isActive, true))
     .orderBy(desc(pickupPoints.createdAt));
 
+  function isItemAdminBlocked(status?: string | null): boolean {
+    if (!status) return false;
+    return ["closed", "flagged", "rejected"].includes(status);
+  }
+
   // جلب المطالبات المعتمدة (Verified) للمستخدم والتي يمكن جدولتها
   const verifiedClaimsRows = await db
     .select({
       id: claims.id,
+      matchId: claims.matchId,
       lostItemId: claims.lostItemId,
       foundItemId: claims.foundItemId,
       lostTitle: lostItems.title,
+      lostStatus: lostItems.status,
       foundTitle: foundItems.title,
+      foundStatus: foundItems.status,
     })
     .from(claims)
     .leftJoin(lostItems, eq(claims.lostItemId, lostItems.id))
@@ -91,9 +101,15 @@ export default async function RecoveriesPage() {
   );
 
   const verifiedClaims = verifiedClaimsRows
-    .filter((c) => !scheduledClaimIds.has(c.id))
+    .filter(
+      (c) =>
+        !scheduledClaimIds.has(c.id) &&
+        !isItemAdminBlocked(c.lostStatus) &&
+        !isItemAdminBlocked(c.foundStatus)
+    )
     .map((c) => ({
       id: c.id,
+      matchId: c.matchId,
       itemTitle: c.foundTitle ?? c.lostTitle ?? "غرض مطالبة",
       lostItemId: c.lostItemId,
       foundItemId: c.foundItemId,

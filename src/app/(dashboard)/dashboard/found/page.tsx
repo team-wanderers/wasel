@@ -50,7 +50,7 @@ export default async function FoundItemsPage() {
             <div key={item.id} className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--space-3)" }}>
                 <span className={`badge badge-${item.status}`}>
-                  {{ open: "مفتوح", matched: "مطابَق", claimed: "مطالَب", recovered: "مُسترجَع", closed: "مغلق" }[item.status]}
+                  {{ open: "مفتوح", matched: "مطابَق", claimed: "مطالَب به", recovered: "تم الاسترجاع", closed: "مغلق" }[item.status]}
                 </span>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
                   {categoryLabels[item.category] ?? item.category}
