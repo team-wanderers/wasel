@@ -2,38 +2,22 @@ import Link from "next/link";
 import { db } from "@/db";
 import { lostItems, foundItems } from "@/db/schema";
 import { eq, or, ilike, and } from "drizzle-orm";
-
-const categoryLabels: Record<string, string> = {
-  documents: "وثائق",
-  electronics: "إلكترونيات",
-  keys: "مفاتيح",
-  bags: "حقائب",
-  jewelry: "مجوهرات",
-  pets: "حيوانات",
-  other: "أخرى",
-};
-
-const categories = Object.entries(categoryLabels);
+import { categoryLabels, formatRelativeAr, searchCategories } from "@/lib/labels";
+import { getFirstMediaMap } from "@/lib/media";
+import ItemCard from "@/components/ItemCard";
+import { IconSearch } from "@/components/icons";
 
 const statusOptions = [
-  { value: "open",      label: "مفتوح (نشط)" },
-  { value: "matched",   label: "مطابَق" },
-  { value: "claimed",   label: "مطالَب به" },
+  { value: "open", label: "مفتوح" },
+  { value: "matched", label: "مطابَق" },
+  { value: "claimed", label: "مطالَب" },
   { value: "recovered", label: "مُسترجَع" },
-  { value: "closed",    label: "مغلق / الأرشيف" },
-  { value: "all",       label: "جميع الحالات" },
+  { value: "closed", label: "مغلق" },
+  { value: "all", label: "الكل" },
 ];
 
-const statusBadgeLabels: Record<ItemStatus, string> = {
-  open: "مفتوح",
-  matched: "مطابَق",
-  claimed: "مطالَب به",
-  recovered: "مُسترجَع",
-  closed: "مغلق",
-};
-
 type ItemCategory = "documents" | "electronics" | "keys" | "bags" | "jewelry" | "pets" | "other";
-type ItemStatus   = "open" | "matched" | "claimed" | "recovered" | "closed";
+type ItemStatus = "open" | "matched" | "claimed" | "recovered" | "closed";
 
 type SearchParams = { q?: string; category?: string; type?: string; status?: string };
 
@@ -52,24 +36,31 @@ export default async function SearchPage({
     ? or(ilike(foundItems.title, `%${q}%`), ilike(foundItems.description, `%${q}%`))
     : undefined;
 
-  const showLost  = !type || type === "lost";
+  const showLost = !type || type === "lost";
   const showFound = !type || type === "found";
 
   const validStatuses: ItemStatus[] = ["open", "matched", "claimed", "recovered", "closed"];
 
-  // Default to "open" items if no status or empty status is specified
-  const effectiveStatus = status && (status === "all" || validStatuses.includes(status as ItemStatus))
-    ? status
-    : "open";
+  const effectiveStatus =
+    status && (status === "all" || validStatuses.includes(status as ItemStatus))
+      ? status
+      : "open";
 
-  const statusFilter = effectiveStatus === "all"
-    ? undefined
-    : (effectiveStatus as ItemStatus);
+  const statusFilter = effectiveStatus === "all" ? undefined : (effectiveStatus as ItemStatus);
 
-  const validCategories: ItemCategory[] = ["documents", "electronics", "keys", "bags", "jewelry", "pets", "other"];
-  const categoryFilter = category && validCategories.includes(category as ItemCategory)
-    ? category as ItemCategory
-    : undefined;
+  const validCategories: ItemCategory[] = [
+    "documents",
+    "electronics",
+    "keys",
+    "bags",
+    "jewelry",
+    "pets",
+    "other",
+  ];
+  const categoryFilter =
+    category && validCategories.includes(category as ItemCategory)
+      ? (category as ItemCategory)
+      : undefined;
 
   const [lostResults, foundResults] = await Promise.all([
     showLost
@@ -121,6 +112,18 @@ export default async function SearchPage({
     ...foundResults.map((r) => ({ ...r, itemType: "found" as const, date: r.foundAt ?? r.createdAt })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const lostIds: string[] = [];
+  const foundIds: string[] = [];
+  for (const item of allResults) {
+    if (item.itemType === "lost") lostIds.push(item.id);
+    else foundIds.push(item.id);
+  }
+
+  const [lostMedia, foundMedia] = await Promise.all([
+    getFirstMediaMap(lostIds, "lost"),
+    getFirstMediaMap(foundIds, "found"),
+  ]);
+
   function buildUrl(overrides: Partial<Record<string, string>>) {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
@@ -142,166 +145,96 @@ export default async function SearchPage({
 
   return (
     <>
-      {/* Hero Search */}
-      <section style={{ background: "var(--color-primary)", padding: "var(--space-12) 0" }}>
-        <div className="container">
-          <h1 style={{ color: "#fff", fontSize: "var(--font-size-3xl)", fontWeight: 700, marginBottom: "var(--space-4)", textAlign: "center" }}>
-            ابحث عن مفقودك أو بلاغ موجود
-          </h1>
-          <form method="GET" style={{ display: "flex", gap: "var(--space-3)", maxWidth: "600px", margin: "0 auto" }}>
-            <input
-              name="q"
-              type="search"
-              className="input"
-              placeholder="ابحث بالكلمات..."
-              defaultValue={q ?? ""}
-              style={{ flex: 1, background: "#fff" }}
-            />
-            {category && <input type="hidden" name="category" value={category} />}
-            {type     && <input type="hidden" name="type"     value={type} />}
-            {status   && status !== "open" && <input type="hidden" name="status" value={status} />}
-            <button type="submit" className="btn btn-primary" style={{ background: "#fff", color: "var(--color-primary)" }}>
-              بحث
-            </button>
-          </form>
-        </div>
-      </section>
+      <h1 className="page-title">تصفح العناصر</h1>
 
-      <div className="container" style={{ padding: "var(--space-8) var(--space-4)" }}>
-        {/* Filters Row */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
-
-          {/* نوع البلاغ */}
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: "60px" }}>النوع:</span>
-            {[{ value: "", label: "الكل" }, { value: "lost", label: "مفقودات" }, { value: "found", label: "موجودات" }].map((t) => (
-              <Link
-                key={t.value}
-                href={buildUrl({ type: t.value })}
-                className={`btn btn-sm ${(type ?? "") === t.value ? "btn-primary" : "btn-outline"}`}
-              >
-                {t.label}
-              </Link>
+      <form method="GET" className="portal-search is-static">
+        <label className="portal-search-cat">
+          <span className="sr-only">التصنيف</span>
+          <select name="category" defaultValue={category ?? ""}>
+            {searchCategories.map((c) => (
+              <option key={c.value || "all"} value={c.value}>
+                {c.label}
+              </option>
             ))}
-          </div>
+          </select>
+        </label>
+        <label className="portal-search-q">
+          <span className="sr-only">عبارة البحث</span>
+          <input
+            name="q"
+            type="search"
+            placeholder="ابحث عن شيء (مثل: محفظة، هاتف، مفاتيح...)"
+            defaultValue={q ?? ""}
+          />
+        </label>
+        {type && <input type="hidden" name="type" value={type} />}
+        {status && status !== "open" && <input type="hidden" name="status" value={status} />}
+        <button type="submit" className="portal-btn portal-btn-solid">
+          بحث
+          <IconSearch size={16} />
+        </button>
+      </form>
 
-          {/* الحالة */}
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: "60px" }}>الحالة:</span>
-            {statusOptions.map((s) => {
-              const isSelected = effectiveStatus === s.value;
-              return (
-                <Link
-                  key={s.value}
-                  href={buildUrl({ status: s.value })}
-                  className={`btn btn-sm ${isSelected ? "btn-primary" : "btn-ghost"}`}
-                >
-                  {s.label}
-                </Link>
-              );
-            })}
-          </div>
+      <div className="portal-filters">
+        {[
+          { value: "", label: "الكل" },
+          { value: "lost", label: "مفقودات" },
+          { value: "found", label: "موجودات" },
+        ].map((t) => (
+          <Link
+            key={t.value || "type-all"}
+            href={buildUrl({ type: t.value })}
+            className={`portal-filter${(type ?? "") === t.value ? " is-active" : ""}`}
+          >
+            {t.label}
+          </Link>
+        ))}
+        {statusOptions.map((s) => (
+          <Link
+            key={s.value}
+            href={buildUrl({ status: s.value })}
+            className={`portal-filter${effectiveStatus === s.value ? " is-active" : ""}`}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </div>
 
-          {/* التصنيف */}
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", minWidth: "60px" }}>التصنيف:</span>
-            <Link href={buildUrl({ category: "" })} className={`btn btn-sm ${!category ? "btn-primary" : "btn-ghost"}`}>
-              الكل
-            </Link>
-            {categories.map(([value, label]) => (
-              <Link
-                key={value}
-                href={buildUrl({ category: value })}
-                className={`btn btn-sm ${category === value ? "btn-primary" : "btn-ghost"}`}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Results count */}
-        <p style={{ color: "var(--color-text-secondary)", marginBottom: "var(--space-6)", fontSize: "var(--font-size-sm)" }}>
-          {allResults.length === 0 ? "لا توجد نتائج" : `${allResults.length} نتيجة`}
-          {q && ` لـ "${q}"`}
-          {effectiveStatus !== "open" && ` • فلتر الحالة: ${statusOptions.find((o) => o.value === effectiveStatus)?.label || effectiveStatus}`}
-        </p>
-
-        {/* Results */}
+      <article className="portal-card">
         {allResults.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: "var(--space-12)" }}>
-            <p style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)", marginBottom: "var(--space-6)" }}>
+          <div className="portal-empty">
+            <p>
               لا توجد بلاغات مطابقة
+              {q ? ` لـ "${q}"` : ""}
             </p>
-            <Link href="/login" className="btn btn-primary">أضف بلاغ مفقود</Link>
+            <Link href="/dashboard/lost/new" className="portal-btn portal-btn-solid">
+              أضف بلاغ مفقود
+            </Link>
           </div>
         ) : (
-          <div className="grid-cards">
+          <ul className="portal-latest">
             {allResults.map((item) => (
-              <div key={`${item.itemType}-${item.id}`} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-3)", flexWrap: "wrap", gap: "var(--space-2)" }}>
-                  <div style={{ display: "flex", gap: "var(--space-2)" }}>
-                    <span
-                      style={{
-                        padding: "var(--space-1) var(--space-2)",
-                        borderRadius: "var(--radius-full)",
-                        fontSize: "var(--font-size-xs)",
-                        fontWeight: 600,
-                        background: item.itemType === "lost" ? "var(--color-danger-light)" : "var(--color-success-light)",
-                        color: item.itemType === "lost" ? "hsl(0,65%,35%)" : "hsl(142,60%,25%)",
-                      }}
-                    >
-                      {item.itemType === "lost" ? "مفقود" : "موجود"}
-                    </span>
-                    <span
-                      style={{
-                        padding: "var(--space-1) var(--space-2)",
-                        borderRadius: "var(--radius-full)",
-                        fontSize: "var(--font-size-xs)",
-                        fontWeight: 500,
-                        background:
-                          item.status === "open"
-                            ? "hsl(215,90%,94%)"
-                            : item.status === "recovered"
-                            ? "var(--color-success-light)"
-                            : item.status === "closed"
-                            ? "hsl(0,70%,94%)"
-                            : "var(--color-bg-secondary)",
-                        color:
-                          item.status === "open"
-                            ? "hsl(215,90%,35%)"
-                            : item.status === "recovered"
-                            ? "hsl(142,60%,25%)"
-                            : item.status === "closed"
-                            ? "hsl(0,65%,35%)"
-                            : "var(--color-text-secondary)",
-                      }}
-                    >
-                      {statusBadgeLabels[item.status] ?? item.status}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                    {categoryLabels[item.category] ?? item.category}
-                  </span>
-                </div>
-                <h2 style={{ fontSize: "var(--font-size-base)", fontWeight: 600, marginBottom: "var(--space-2)" }}>{item.title}</h2>
-                <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: "var(--space-4)",
-                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                  {item.description}
-                </p>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                    {new Date(item.date).toLocaleDateString("ar-YE")}
-                  </span>
-                  <Link href={`/items/${item.itemType}/${item.id}`} className="btn btn-outline btn-sm">
-                    عرض التفاصيل
-                  </Link>
-                </div>
-              </div>
+              <li key={`${item.itemType}-${item.id}`}>
+                <ItemCard
+                  href={`/items/${item.itemType}/${item.id}`}
+                  title={item.title}
+                  subtitle={
+                    item.itemType === "found"
+                      ? `وجد في: عتق · ${categoryLabels[item.category] ?? item.category}`
+                      : `فُقد في: عتق · ${categoryLabels[item.category] ?? item.category}`
+                  }
+                  meta={formatRelativeAr(item.date)}
+                  imageSrc={
+                    item.itemType === "lost"
+                      ? lostMedia.get(item.id)
+                      : foundMedia.get(item.id)
+                  }
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </article>
     </>
   );
 }

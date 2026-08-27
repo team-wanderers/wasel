@@ -11,9 +11,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.tile.openstreetmap.org" },
     ],
   },
-  // تجنب مشكلة Leaflet مع SSR
-  webpack: (config) => {
-    config.resolve.fallback = { ...config.resolve.fallback, fs: false };
+  serverExternalPackages: ["postgres", "drizzle-orm"],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = { ...config.resolve.fallback, fs: false };
+    }
     return config;
   },
 };

@@ -253,13 +253,7 @@ export default async function ItemDetailPage({
 
   return (
     <main dir="rtl">
-      <div
-        className="container"
-        style={{
-          maxWidth: "1100px",
-          paddingBlock: "var(--space-8)",
-        }}
-      >
+      <div>
         {/* Breadcrumb */}
         <nav
           aria-label="مسار الصفحة"
