@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ScheduleModal, { PickupPoint, VerifiedClaim } from "./ScheduleModal";
@@ -22,17 +22,54 @@ function RecoveriesManagerInner({
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramClaimId = searchParams.get("claimId");
+  const paramMatchId = searchParams.get("matchId");
   const paramAction = searchParams.get("action");
 
+  const matchedClaim = paramMatchId ? verifiedClaims.find((c) => c.matchId === paramMatchId) : undefined;
+  const resolvedParamClaimId = paramClaimId || matchedClaim?.id;
+
   const [recoveriesList, setRecoveriesList] = useState<RecoveryItem[]>(initialRecoveries);
+
+  // فحص ما إذا كانت المطالبة أو المطابقة مجدولة مسبقاً ولديها سجل استلام
+  const existingActiveRecovery = recoveriesList.find((r) => {
+    if (resolvedParamClaimId && r.claimId === resolvedParamClaimId) {
+      return ["scheduled", "in_progress", "deposited", "completed"].includes(r.status);
+    }
+    if (matchedClaim) {
+      if (r.claimId === matchedClaim.id) {
+        return ["scheduled", "in_progress", "deposited", "completed"].includes(r.status);
+      }
+      if (
+        matchedClaim.lostItemId &&
+        r.lostItemId === matchedClaim.lostItemId &&
+        matchedClaim.foundItemId &&
+        r.foundItemId === matchedClaim.foundItemId
+      ) {
+        return ["scheduled", "in_progress", "deposited", "completed"].includes(r.status);
+      }
+    }
+    return false;
+  });
+
   const [modalOpenOverride, setModalOpenOverride] = useState<boolean | null>(null);
-  const isModalOpen = modalOpenOverride !== null
-    ? modalOpenOverride
-    : Boolean(paramAction === "schedule" || paramClaimId);
+  const isModalOpen =
+    modalOpenOverride !== null
+      ? modalOpenOverride
+      : Boolean(
+          !existingActiveRecovery &&
+          (paramAction === "schedule" || (resolvedParamClaimId && verifiedClaims.some((c) => c.id === resolvedParamClaimId)))
+        );
+
+  // إذا كانت مجدولة مسبقاً مع وجود معلمات في الرابط: تفريغ الرابط فوراً
+  useEffect(() => {
+    if (existingActiveRecovery && (paramAction || paramClaimId || paramMatchId)) {
+      router.replace("/dashboard/recoveries");
+    }
+  }, [existingActiveRecovery, paramAction, paramClaimId, paramMatchId, router]);
 
   const [activeModalRecovery, setActiveModalRecovery] = useState<RecoveryItem | null>(null);
   const [customTargetClaimId, setCustomTargetClaimId] = useState<string | undefined>(undefined);
-  const targetClaimId = customTargetClaimId ?? (paramClaimId || undefined);
+  const targetClaimId = customTargetClaimId ?? (resolvedParamClaimId || undefined);
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -170,6 +207,9 @@ function RecoveriesManagerInner({
           onClose={() => {
             setModalOpenOverride(false);
             setCustomTargetClaimId(undefined);
+            if (paramAction || paramClaimId || paramMatchId) {
+              router.replace("/dashboard/recoveries");
+            }
           }}
           availablePickupPoints={availablePickupPoints}
           verifiedClaims={verifiedClaims}
@@ -180,6 +220,11 @@ function RecoveriesManagerInner({
           defaultNotes={activeModalRecovery?.notes || undefined}
           onSuccess={(msg, updated) => {
             setMessage({ type: "success", text: msg });
+            setModalOpenOverride(false);
+            setCustomTargetClaimId(undefined);
+            if (paramAction || paramClaimId || paramMatchId) {
+              router.replace("/dashboard/recoveries");
+            }
             if (updated && updated.id) {
               setRecoveriesList((prev) =>
                 prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))

@@ -47,30 +47,36 @@ export default function NewLostItemPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     if (!form.category) { setError("يرجى اختيار تصنيف المفقود"); return; }
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/lost", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        lat,
-        lng,
-        lostAt: form.lostAt ? new Date(form.lostAt).toISOString() : null,
-        images: uploadedImages.map((img) => ({ path: img.path })),
-      }),
-    });
+    try {
+      const res = await fetch("/api/lost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          lat,
+          lng,
+          lostAt: form.lostAt ? new Date(form.lostAt).toISOString() : null,
+          images: uploadedImages.map((img) => ({ path: img.path })),
+        }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
-    } else {
-      router.push("/dashboard/lost");
-      router.refresh();
+      if (!res.ok) {
+        setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
+        setLoading(false);
+      } else {
+        router.push("/dashboard/lost");
+        router.refresh();
+      }
+    } catch {
+      setError("تعذر الاتصال بالخادم، حاول مرة أخرى");
+      setLoading(false);
     }
   }
 
@@ -219,7 +225,14 @@ export default function NewLostItemPage() {
             className="btn btn-primary"
             disabled={loading}
           >
-            {loading ? "جارٍ النشر..." : "نشر البلاغ"}
+            {loading ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                جارٍ النشر...
+              </span>
+            ) : "نشر البلاغ"}
           </button>
         </div>
       </form>

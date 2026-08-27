@@ -5,19 +5,30 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ClaimForm from "./ClaimForm";
 
+export interface ExistingClaimData {
+  id: string;
+  status: string;
+  proofDescription?: string | null;
+  verificationNotes?: string | null;
+  createdAt?: Date | string | null;
+  recoveryId?: string | null;
+  recoveryStatus?: string | null;
+}
+
 interface ClaimSectionProps {
   itemType: "lost" | "found";
   itemId: string;
   counterpartId?: string | null;
+  existingClaim?: ExistingClaimData | null;
 }
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
-  verified: { label: "تم إثبات الملكية تلقائياً بنجاح!", color: "hsl(142,60%,25%)", bg: "var(--color-success-light)" },
-  rejected: { label: "لم يتطابق الدليل مع التفاصيل السرية — ستتم المراجعة يدوياً", color: "hsl(30,80%,30%)", bg: "hsl(38,90%,92%)" },
-  pending:  { label: "تم إرسال المطالبة بنجاح وهي قيد المراجعة", color: "hsl(200,60%,30%)", bg: "hsl(200,60%,92%)" },
+  verified: { label: "تم إثبات وقبول الملكية بنجاح!", color: "hsl(142,60%,25%)", bg: "var(--color-success-light)" },
+  rejected: { label: "لم يتم قبول الدليل — يرجى مراجعة التفاصيل", color: "hsl(0,80%,35%)", bg: "hsl(0,90%,95%)" },
+  pending:  { label: "⏳ تم إرسال إثبات الملكية بنجاح — بانتظار مراجعة الملتقط", color: "hsl(200,60%,30%)", bg: "hsl(200,60%,92%)" },
 };
 
-export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimSectionProps) {
+export default function ClaimSection({ itemType, itemId, counterpartId, existingClaim }: ClaimSectionProps) {
   const router = useRouter();
   const [result, setResult] = useState<{ id: string; status: string; notes: string | null } | null>(null);
 
@@ -28,13 +39,182 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
         if (result.status === "verified") {
           router.push(`/dashboard/recoveries?claimId=${result.id}&action=schedule`);
         } else {
-          router.push("/dashboard/claims");
+          router.push("/dashboard/claims?tab=outgoing");
         }
         router.refresh();
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, [result, router]);
+
+  // إذا وُجدت مطالبة نشطة مسبقة على هذا الغرض
+  if (existingClaim) {
+    if (existingClaim.status === "verified") {
+      const isScheduled =
+        existingClaim.recoveryStatus &&
+        ["scheduled", "in_progress", "deposited", "completed"].includes(
+          existingClaim.recoveryStatus
+        );
+
+      if (isScheduled) {
+        return (
+          <div
+            style={{
+              padding: "var(--space-5)",
+              borderRadius: "var(--radius-lg)",
+              background: "var(--color-success-light)",
+              border: "1px solid hsl(142, 60%, 35%)33",
+              marginTop: "var(--space-4)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                color: "hsl(142, 60%, 25%)",
+                fontWeight: 700,
+                fontSize: "var(--font-size-base)",
+                marginBottom: "var(--space-2)",
+              }}
+            >
+              <span>✓</span>
+              <span>تم جدولة موعد الاستلام بنجاح — الرمز متاح في لوحة التحكم</span>
+            </div>
+
+            <p
+              style={{
+                fontSize: "var(--font-size-sm)",
+                color: "hsl(142, 60%, 25%)",
+                opacity: 0.9,
+                lineHeight: 1.8,
+                marginBottom: "var(--space-4)",
+              }}
+            >
+              تم تأكيد موعد ونقطة الاستلام لهذا الغرض. يمكنك استعراض تفاصيل الموعد ورمز الاستلام (OTP) من خلال لوحة التحكم.
+            </p>
+
+            <Link
+              href="/dashboard/recoveries"
+              className="btn btn-primary btn-sm"
+            >
+              عرض تفاصيل الاستلام والرمز (OTP) ←
+            </Link>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          style={{
+            padding: "var(--space-5)",
+            borderRadius: "var(--radius-lg)",
+            background: "var(--color-success-light)",
+            border: "1px solid hsl(142, 60%, 35%)33",
+            marginTop: "var(--space-4)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              color: "hsl(142, 60%, 25%)",
+              fontWeight: 700,
+              fontSize: "var(--font-size-base)",
+              marginBottom: "var(--space-2)",
+            }}
+          >
+            <span>✓</span>
+            <span>تم إثبات وقبول ملكيتك لهذا الغرض بنجاح!</span>
+          </div>
+
+          <p
+            style={{
+              fontSize: "var(--font-size-sm)",
+              color: "hsl(142, 60%, 25%)",
+              opacity: 0.9,
+              lineHeight: 1.8,
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            تم توثيق المطالبة بنجاح. يمكنك الآن الانتقال مباشرة لجدولة موعد ومكان الاستلام في إحدى نقاط الأمانة المعتمدة.
+          </p>
+
+          <Link
+            href={`/dashboard/recoveries?claimId=${existingClaim.id}&action=schedule`}
+            className="btn btn-primary btn-sm"
+          >
+            الانتقال لجدولة موعد الاستلام ←
+          </Link>
+        </div>
+      );
+    }
+
+    if (existingClaim.status === "pending") {
+      return (
+        <div
+          style={{
+            padding: "var(--space-5)",
+            borderRadius: "var(--radius-lg)",
+            background: "hsl(200, 60%, 96%)",
+            border: "1px solid hsl(200, 60%, 80%)",
+            marginTop: "var(--space-4)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              color: "hsl(200, 60%, 30%)",
+              fontWeight: 700,
+              fontSize: "var(--font-size-base)",
+              marginBottom: "var(--space-2)",
+            }}
+          >
+            <span>⏳</span>
+            <span>تم إرسال إثبات الملكية — بانتظار مراجعة الملتقط</span>
+          </div>
+
+          {existingClaim.proofDescription && (
+            <p
+              style={{
+                fontSize: "var(--font-size-sm)",
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.8,
+                marginBottom: "var(--space-3)",
+              }}
+            >
+              <strong>دليل الإثبات المقدَّم:</strong> &quot;{existingClaim.proofDescription}&quot;
+            </p>
+          )}
+
+          <p
+            style={{
+              fontSize: "var(--font-size-xs)",
+              color: "var(--color-text-muted)",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            تم تسجيل المطالبة وهي قيد المراجعة حالياً لمنع ازدواجية الطلبات. سيتم إشعارك فور اكتمال مراجعتها.
+          </p>
+
+          <Link
+            href="/dashboard/claims?tab=outgoing"
+            className="btn btn-outline btn-sm"
+            style={{
+              color: "hsl(200, 60%, 30%)",
+              borderColor: "hsl(200, 60%, 70%)",
+              background: "#fff",
+            }}
+          >
+            متابعة حالة المطالبة في لوحة التحكم ←
+          </Link>
+        </div>
+      );
+    }
+  }
 
   if (result) {
     const info = statusLabels[result.status] ?? statusLabels.pending;
@@ -106,3 +286,4 @@ export default function ClaimSection({ itemType, itemId, counterpartId }: ClaimS
     />
   );
 }
+

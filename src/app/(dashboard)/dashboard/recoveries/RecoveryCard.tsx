@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconCheck, IconCircle } from "@/components/icons";
+import { IconCheck, IconCircle, IconAlertTriangle } from "@/components/icons";
 
 export interface RecoveryItem {
   id: string;
@@ -23,9 +23,16 @@ export interface RecoveryItem {
   lostItemId: string | null;
   foundItemId: string | null;
   lostTitle: string | null;
+  lostStatus?: string | null;
   lostUserId: string | null;
   foundTitle: string | null;
+  foundStatus?: string | null;
   foundUserId: string | null;
+}
+
+function isItemAdminBlocked(status?: string | null): boolean {
+  if (!status) return false;
+  return ["closed", "flagged", "rejected"].includes(status);
 }
 
 interface RecoveryCardProps {
@@ -114,7 +121,13 @@ export default function RecoveryCard({
   isConfirming,
 }: RecoveryCardProps) {
   const [otpValue, setOtpValue] = useState("");
-  const s = statusLabels[recovery.status] ?? statusLabels.scheduled;
+  const isBlocked = isItemAdminBlocked(recovery.lostStatus) || isItemAdminBlocked(recovery.foundStatus);
+
+  let s = statusLabels[recovery.status] ?? statusLabels.scheduled;
+  if (isBlocked) {
+    s = { label: "استرجاع موقوف إدارياً", color: "hsl(0, 0%, 40%)", bg: "hsl(0, 0%, 90%)" };
+  }
+
   const itemTitle = recovery.foundTitle ?? recovery.lostTitle ?? "غرض غير محدد";
 
   const { role, label: roleLabel, buttonText, isConfirmed: userAlreadyConfirmed } = getUserRole(recovery, currentUserId);
@@ -128,7 +141,7 @@ export default function RecoveryCard({
   }
 
   return (
-    <div className="card" style={{ borderRight: `4px solid ${s.color}` }}>
+    <div className="card" style={{ borderRight: `4px solid ${s.color}`, opacity: isBlocked ? 0.9 : 1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
         <div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
@@ -154,21 +167,45 @@ export default function RecoveryCard({
         </span>
       </div>
 
+      {/* شريط التحذير الإداري العريض */}
+      {isBlocked && (
+        <div
+          style={{
+            background: "hsl(35, 95%, 93%)",
+            border: "1px solid hsl(35, 90%, 80%)",
+            borderRadius: "var(--radius-md)",
+            padding: "var(--space-3) var(--space-4)",
+            marginBottom: "var(--space-4)",
+            fontSize: "var(--font-size-sm)",
+            color: "hsl(35, 90%, 25%)",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-2)",
+            fontWeight: 600,
+          }}
+        >
+          <IconAlertTriangle size={18} style={{ flexShrink: 0 }} />
+          <span>⚠️ تم إيقاف إجراءات الاسترجاع والتسليم وتجميد الرمز نظراً لإغلاق البلاغ من قِبل الإدارة.</span>
+        </div>
+      )}
+
       {/* تنبيه المرونة والتسليم المستقل */}
-      <div
-        style={{
-          background: "hsl(48, 100%, 96%)",
-          border: "1px solid hsl(48, 90%, 80%)",
-          borderRadius: "var(--radius-md)",
-          padding: "var(--space-3) var(--space-4)",
-          marginBottom: "var(--space-4)",
-          fontSize: "var(--font-size-xs)",
-          color: "hsl(35, 90%, 25%)",
-          lineHeight: 1.6,
-        }}
-      >
-        <strong>ملاحظة للمستلم والملتقط:</strong> يمكن للملتقط إيداع الغرض، وللمالك استلامه بشكل مستقل خلال ساعات عمل المركز دون اشتراط التواجد معاً.
-      </div>
+      {!isBlocked && (
+        <div
+          style={{
+            background: "hsl(48, 100%, 96%)",
+            border: "1px solid hsl(48, 90%, 80%)",
+            borderRadius: "var(--radius-md)",
+            padding: "var(--space-3) var(--space-4)",
+            marginBottom: "var(--space-4)",
+            fontSize: "var(--font-size-xs)",
+            color: "hsl(35, 90%, 25%)",
+            lineHeight: 1.6,
+          }}
+        >
+          <strong>ملاحظة للمستلم والملتقط:</strong> يمكن للملتقط إيداع الغرض، وللمالك استلامه بشكل مستقل خلال ساعات عمل المركز دون اشتراط التواجد معاً.
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-4)", background: "var(--color-bg-secondary)", padding: "var(--space-4)", borderRadius: "var(--radius-md)" }}>
         <div>
@@ -196,7 +233,7 @@ export default function RecoveryCard({
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>موعد التسليم المقترح</span>
-            {!isCompleted && (
+            {!isCompleted && !isBlocked && (
               <button
                 type="button"
                 onClick={() => onOpenReschedule(recovery)}
@@ -231,7 +268,7 @@ export default function RecoveryCard({
       </div>
 
       {/* بطاقة رمز الاستلام للمالك */}
-      {recovery.handoverCode && !isCompleted && role === "owner" && (
+      {recovery.handoverCode && !isCompleted && !isBlocked && role === "owner" && (
         <div
           style={{
             background: "hsl(200,60%,96%)",
@@ -309,7 +346,20 @@ export default function RecoveryCard({
           </span>
         </div>
 
-        {!isCompleted && (
+        {isBlocked ? (
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              color: "hsl(0, 0%, 40%)",
+              background: "hsl(0, 0%, 90%)",
+              padding: "4px 10px",
+              borderRadius: "var(--radius-full)",
+            }}
+          >
+            استرجاع موقوف إدارياً
+          </span>
+        ) : !isCompleted ? (
           <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
             {/* واجهة الملتقط: إيداع الغرض فقط */}
             {role === "finder" && (
@@ -383,9 +433,7 @@ export default function RecoveryCard({
               </button>
             )}
           </div>
-        )}
-
-        {isCompleted && (
+        ) : (
           <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
             <IconCheck size={12} strokeWidth={2.4} /> اكتمل الاسترجاع وأُغلق البلاغ بنجاح
           </span>

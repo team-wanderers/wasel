@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import ImageUploader from "@/components/ImageUploader";
-import { IconCheck, IconLock, IconPencil } from "@/components/icons";
+import { IconCheck, IconLock, IconPencil, IconAlertTriangle, IconTrash, IconClose } from "@/components/icons";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -35,6 +35,9 @@ const categories = [
 
 const statusOptions = [
   { value: "open", label: "مفتوح" },
+  { value: "matched", label: "مطابَق" },
+  { value: "claimed", label: "مطالَب به" },
+  { value: "recovered", label: "مُسترجَع" },
   { value: "closed", label: "مغلق" },
 ];
 
@@ -43,6 +46,145 @@ type UploadedImage = {
   path: string;
   previewUrl: string;
 };
+
+function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "var(--space-4)",
+        zIndex: 50,
+      }}
+    >
+      <div
+        className="card"
+        style={{
+          width: "100%",
+          maxWidth: "460px",
+          background: "#fff",
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-6)",
+          boxShadow: "var(--shadow-lg)",
+          border: "1px solid var(--color-border)",
+          position: "relative",
+          textAlign: "right",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "var(--space-4)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              color: "var(--color-danger)",
+              fontWeight: 700,
+              fontSize: "var(--font-size-base)",
+            }}
+          >
+            <IconAlertTriangle size={20} />
+            <span>تأكيد حذف البلاغ</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost btn-sm"
+            aria-label="إغلاق"
+            style={{ padding: "4px", minWidth: "auto" }}
+          >
+            <IconClose size={16} />
+          </button>
+        </div>
+
+        <p
+          style={{
+            fontSize: "var(--font-size-sm)",
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.8,
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          هل أنت متأكد من حذف هذا البلاغ؟ لا يمكن التراجع عن هذه العملية وستُحذف جميع البيانات والصور المرفقة نهائياً.
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "var(--space-3)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="btn btn-outline btn-sm"
+          >
+            إلغاء
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="btn btn-danger btn-sm"
+          >
+            {loading ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                جاري الحذف...
+              </span>
+            ) : (
+              "نعم، احذف البلاغ"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EditLostItemPage() {
   const router = useRouter();
@@ -66,7 +208,7 @@ export default function EditLostItemPage() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadItem() {
@@ -135,6 +277,11 @@ export default function EditLostItemPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (form.status !== "open") {
+      setError("لا يمكن تعديل هذا البلاغ لأنه ليس بالحالة المفتوحة.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setSaved(false);
@@ -179,6 +326,12 @@ export default function EditLostItemPage() {
   }
 
   async function handleDelete() {
+    if (form.status !== "open") {
+      setError("لا يمكن حذف هذا البلاغ لأنه ليس بالحالة المفتوحة.");
+      setDeleteModalOpen(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -190,6 +343,8 @@ export default function EditLostItemPage() {
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         setError(data?.error ?? "فشل حذف البلاغ.");
+        setDeleteModalOpen(false);
+        setLoading(false);
         return;
       }
 
@@ -197,478 +352,447 @@ export default function EditLostItemPage() {
       router.refresh();
     } catch {
       setError("تعذر حذف البلاغ. حاول مرة أخرى.");
-    } finally {
+      setDeleteModalOpen(false);
       setLoading(false);
     }
   }
 
   if (fetching) {
     return (
-      <div
-        dir="rtl"
-        style={{
-          maxWidth: "880px",
-          marginInline: "auto",
-          paddingBlock: "var(--space-8)",
-          color: "var(--color-text-muted)",
-        }}
-      >
-        جارٍ تحميل البلاغ...
+      <div className="card" style={{ textAlign: "center", padding: "var(--space-12)" }}>
+        <p style={{ color: "var(--color-text-muted)" }}>
+          جارٍ تحميل البلاغ...
+        </p>
       </div>
     );
   }
 
   return (
-    <div
-      dir="rtl"
-      style={{
-        maxWidth: "880px",
-        marginInline: "auto",
-      }}
-    >
-      <style>{`
-        .edit-report-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: var(--space-6);
-        }
+    <div style={{ maxWidth: "860px", margin: "0 auto" }}>
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        loading={loading}
+      />
 
-        .edit-report-full {
-          grid-column: 1 / -1;
-        }
-
-        @media (max-width: 768px) {
-          .edit-report-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .edit-report-full {
-            grid-column: auto;
-          }
-        }
-      `}</style>
-
-      {/* Header */}
-      <section style={{ marginBottom: "var(--space-8)" }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0.5rem 0.9rem",
-            borderRadius: "999px",
-            background: "hsl(245, 70%, 95%)",
-            color: "hsl(245, 55%, 45%)",
-            fontSize: "var(--font-size-sm)",
-            fontWeight: 700,
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          <IconPencil size={16} /> تعديل البلاغ
-        </span>
-
-        <h1
-          style={{
-            fontSize: "clamp(1.8rem, 4vw, 2.5rem)",
-            fontWeight: 700,
-            marginBottom: "var(--space-3)",
-          }}
-        >
-          تعديل بيانات البلاغ
-        </h1>
-
-        <p
-          style={{
-            color: "var(--color-text-secondary)",
-            lineHeight: 1.9,
-            maxWidth: "700px",
-          }}
-        >
-          يمكنك تحديث معلومات البلاغ والتأكد من أن البيانات المعروضة
-          ما زالت صحيحة.
-        </p>
-
-        <p
-          style={{
-            fontSize: "var(--font-size-sm)",
-            color: "var(--color-text-muted)",
-            marginTop: "var(--space-3)",
-          }}
-        >
-          الحقول التي تحمل{" "}
-          <span
-            style={{
-              color: "var(--color-danger)",
-              fontWeight: 700,
-            }}
-          >
-            *
-          </span>{" "}
-          إلزامية.
-        </p>
-      </section>
-
-      {/* Success */}
-      {saved && (
-        <div
-          className="alert alert-success"
-          style={{
-            marginBottom: "var(--space-6)",
-          }}
-        >
+      <div
+        className="page-header"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "var(--space-4)",
+          flexWrap: "wrap",
+          marginBottom: "var(--space-6)",
+        }}
+      >
+        <div>
           <div
             style={{
               display: "flex",
-              alignItems: "flex-start",
-              gap: "var(--space-3)",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              color: "var(--color-primary)",
+              fontSize: "var(--font-size-sm)",
+              fontWeight: 700,
+              marginBottom: "var(--space-1)",
             }}
           >
-            <div style={{ color: "var(--color-success)", paddingTop: "0.2rem" }}>
-              <IconCheck size={24} strokeWidth={2} />
+            <IconPencil size={16} /> تعديل البلاغ
+          </div>
+
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "var(--font-size-2xl)",
+              fontWeight: 800,
+            }}
+          >
+            تعديل بيانات البلاغ
+          </h1>
+
+          <p
+            style={{
+              fontSize: "var(--font-size-sm)",
+              color: "var(--color-text-secondary)",
+              marginTop: "var(--space-1)",
+            }}
+          >
+            يمكنك تحديث معلومات البلاغ والتأكد من أن البيانات المعروضة
+            ما زالت صحيحة.
+          </p>
+
+          <p
+            style={{
+              fontSize: "var(--font-size-xs)",
+              color: "var(--color-text-muted)",
+              marginTop: "var(--space-1)",
+            }}
+          >
+            الحقول التي تحمل{" "}
+            <span
+              style={{
+                color: "var(--color-danger)",
+                fontWeight: 700,
+              }}
+            >
+              *
+            </span>{" "}
+            إلزامية.
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        {error && (
+          <div
+            className="alert alert-error"
+            role="alert"
+            style={{ marginBottom: "var(--space-6)" }}
+          >
+            {error}
+          </div>
+        )}
+
+        {saved && (
+          <div
+            className="alert alert-success"
+            role="status"
+            style={{ marginBottom: "var(--space-6)" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+              }}
+            >
+              <IconCheck size={18} />
+
+              <div>
+                <strong>تم حفظ التعديلات</strong>
+                <p
+                  style={{
+                    fontSize: "var(--font-size-sm)",
+                    margin: 0,
+                  }}
+                >
+                  تم تحديث البلاغ بنجاح.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <fieldset
+          disabled={form.status !== "open"}
+          style={{
+            border: "none",
+            padding: 0,
+            margin: 0,
+            opacity: form.status !== "open" ? 0.7 : 1,
+          }}
+        >
+          {form.status !== "open" && (
+            <div
+              className="alert alert-warning"
+              style={{
+                marginBottom: "var(--space-6)",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "var(--space-2)",
+              }}
+            >
+              <IconAlertTriangle size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
+              <div>
+                <strong>تعديل وحذف البلاغ معطَّل</strong>
+                <p style={{ fontSize: "var(--font-size-sm)", margin: 0, marginTop: "4px" }}>
+                  {form.status === "closed"
+                    ? "هذا البلاغ مغلق (تمت مراجعته أو إغلاقه من قِبل الإدارة)، ولا يمكن تعديل أو حذف بياناته."
+                    : form.status === "recovered"
+                    ? "تم تسليم واسترجاع هذا الغرض بنجاح، البلاغ مكتمل ومؤرشف ولا يمكن تعديله أو حذفه."
+                    : form.status === "claimed"
+                    ? "هذا البلاغ مرتبط بمطالبة مثبتة وقيد إجراءات الاسترداد، لا يمكن تعديل أو حذف بياناته حالياً."
+                    : "لا يمكن تعديل أو حذف هذا البلاغ لأنه ليس بالحالة المفتوحة."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="edit-report-grid"
+            style={{
+              display: "grid",
+              gap: "var(--space-6)",
+            }}
+          >
+            <div className="field">
+              <label className="label" htmlFor="status">
+                الحالة
+              </label>
+
+              <select
+                id="status"
+                name="status"
+                className="select"
+                value={form.status}
+                disabled
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <h2
+            <div className="field edit-report-full">
+              <label className="label" htmlFor="title">
+                اسم الغرض{" "}
+                <span style={{ color: "var(--color-danger)" }}>*</span>
+              </label>
+
+              <input
+                id="title"
+                name="title"
+                type="text"
+                className="input"
+                value={form.title}
+                onChange={handleChange}
+                minLength={3}
+                maxLength={100}
+                required
+              />
+            </div>
+
+            <div className="field edit-report-full">
+              <label className="label">
+                نوع الغرض{" "}
+                <span style={{ color: "var(--color-danger)" }}>*</span>
+              </label>
+
+              <div
                 style={{
-                  fontWeight: 700,
-                  marginBottom: "var(--space-1)",
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fill, minmax(130px, 1fr))",
+                  gap: "var(--space-2)",
                 }}
               >
-                تم حفظ التعديلات
-              </h2>
+                {categories.map((category) => {
+                  const selected = form.category === category.value;
+
+                  return (
+                    <label
+                      key={category.value}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "var(--space-3)",
+                        border: `1px solid ${
+                          selected
+                            ? "var(--color-primary)"
+                            : "var(--color-border)"
+                        }`,
+                        borderRadius: "var(--radius-md)",
+                        background: selected
+                          ? "var(--color-primary-light)"
+                          : "var(--color-surface)",
+                        color: selected
+                          ? "var(--color-primary)"
+                          : "var(--color-text-secondary)",
+                        cursor: form.status === "open" ? "pointer" : "not-allowed",
+                        fontSize: "var(--font-size-sm)",
+                        fontWeight: selected ? 700 : 500,
+                        transition:
+                          "background 150ms ease, border-color 150ms ease, color 150ms ease",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="category"
+                        value={category.value}
+                        checked={selected}
+                        onChange={handleChange}
+                        disabled={form.status !== "open"}
+                        style={{
+                          position: "absolute",
+                          opacity: 0,
+                          pointerEvents: "none",
+                        }}
+                      />
+
+                      {category.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="field edit-report-full">
+              <label className="label" htmlFor="description">
+                وصف الغرض{" "}
+                <span style={{ color: "var(--color-danger)" }}>*</span>
+              </label>
+
+              <textarea
+                id="description"
+                name="description"
+                className="textarea"
+                value={form.description}
+                onChange={handleChange}
+                minLength={10}
+                rows={5}
+                required
+              />
+            </div>
+
+            <div className="field edit-report-full">
+              <label className="label">
+                صورة الغرض{" "}
+                <span
+                  style={{
+                    color: "var(--color-text-muted)",
+                    fontWeight: 400,
+                  }}
+                >
+                  (اختياري)
+                </span>
+              </label>
+
+              <div
+                style={{
+                  borderRadius: "var(--radius-lg)",
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-bg)",
+                  padding: "var(--space-5)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--space-3)",
+                  }}
+                >
+                  <div>
+                    <strong
+                      style={{
+                        display: "block",
+                        marginBottom: "var(--space-1)",
+                      }}
+                    >
+                      الصور الحالية
+                    </strong>
+
+                    <p
+                      style={{
+                        fontSize: "var(--font-size-sm)",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
+                      {form.status === "open"
+                        ? "يمكنك إضافة صور أو حذف الصور الحالية من خلال أداة الصور."
+                        : "عرض الصور المرفقة بالبلاغ."}
+                    </p>
+                  </div>
+
+                  {form.status === "open" ? (
+                    <ImageUploader
+                      key={`lost-uploader-${id}`}
+                      lostItemId={id}
+                      initialFiles={uploadedImages}
+                      onUpload={setUploadedImages}
+                    />
+                  ) : (
+                    <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+                      {uploadedImages.map((img) => (
+                        <a key={img.id} href={img.previewUrl} target="_blank" rel="noopener noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.previewUrl}
+                            alt="صورة البلاغ"
+                            style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "var(--radius-md)" }}
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="lostAt">
+                تاريخ الفقدان
+              </label>
+
+              <input
+                id="lostAt"
+                name="lostAt"
+                type="datetime-local"
+                className="input"
+                value={form.lostAt}
+                onChange={handleChange}
+                dir="ltr"
+              />
+            </div>
+
+            <div className="field edit-report-full">
+              <label className="label">الموقع</label>
 
               <p
                 style={{
                   fontSize: "var(--font-size-sm)",
-                  lineHeight: 1.7,
-                }}
-              >
-                تم تحديث البلاغ بنجاح.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div
-          className="alert alert-error"
-          style={{
-            marginBottom: "var(--space-6)",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Delete confirmation */}
-      {deleteConfirm && (
-        <div
-          className="alert alert-error"
-          style={{
-            marginBottom: "var(--space-6)",
-          }}
-        >
-          <p
-            style={{
-              marginBottom: "var(--space-4)",
-              fontWeight: 600,
-            }}
-          >
-            هل أنت متأكد من حذف هذا البلاغ؟ لا يمكن التراجع عن هذه العملية.
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "var(--space-3)",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              onClick={handleDelete}
-              disabled={loading}
-            >
-              {loading ? "جارٍ الحذف..." : "نعم، احذف البلاغ"}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setDeleteConfirm(false)}
-              disabled={loading}
-            >
-              إلغاء
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="card"
-        style={{
-          padding: "var(--space-8)",
-        }}
-      >
-        <div className="edit-report-grid">
-          {/* Status */}
-          <div className="field">
-            <label className="label" htmlFor="status">
-              الحالة
-            </label>
-
-            <select
-              id="status"
-              name="status"
-              className="select"
-              value={form.status}
-              onChange={handleChange}
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Title */}
-          <div className="field">
-            <label className="label" htmlFor="title">
-              اسم الغرض{" "}
-              <span style={{ color: "var(--color-danger)" }}>*</span>
-            </label>
-
-            <input
-              id="title"
-              name="title"
-              type="text"
-              className="input"
-              value={form.title}
-              onChange={handleChange}
-              minLength={3}
-              required
-            />
-          </div>
-
-          {/* Category */}
-          <div className="field edit-report-full">
-            <label className="label">
-              نوع الغرض{" "}
-              <span style={{ color: "var(--color-danger)" }}>*</span>
-            </label>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(130px, 1fr))",
-                gap: "var(--space-2)",
-              }}
-            >
-              {categories.map((category) => {
-                const selected = form.category === category.value;
-
-                return (
-                  <label
-                    key={category.value}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: "48px",
-                      padding: "var(--space-2) var(--space-3)",
-                      border: `1.5px solid ${
-                        selected
-                          ? "var(--color-primary)"
-                          : "var(--color-border)"
-                      }`,
-                      borderRadius: "var(--radius-md)",
-                      background: selected
-                        ? "var(--color-primary-light)"
-                        : "var(--color-surface)",
-                      color: selected
-                        ? "var(--color-primary)"
-                        : "var(--color-text-secondary)",
-                      cursor: "pointer",
-                      fontSize: "var(--font-size-sm)",
-                      fontWeight: selected ? 700 : 500,
-                      transition:
-                        "background 150ms ease, border-color 150ms ease, color 150ms ease",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="category"
-                      value={category.value}
-                      checked={selected}
-                      onChange={handleChange}
-                      style={{
-                        position: "absolute",
-                        opacity: 0,
-                        pointerEvents: "none",
-                      }}
-                    />
-
-                    {category.label}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="field edit-report-full">
-            <label className="label" htmlFor="description">
-              وصف الغرض{" "}
-              <span style={{ color: "var(--color-danger)" }}>*</span>
-            </label>
-
-            <textarea
-              id="description"
-              name="description"
-              className="textarea"
-              value={form.description}
-              onChange={handleChange}
-              minLength={10}
-              rows={5}
-              required
-            />
-          </div>
-
-          {/* Images */}
-          <div className="field edit-report-full">
-            <label className="label">
-              صورة الغرض{" "}
-              <span
-                style={{
                   color: "var(--color-text-muted)",
-                  fontWeight: 400,
+                  marginBottom: "var(--space-2)",
                 }}
               >
-                (اختياري)
-              </span>
-            </label>
+                حدّد الموقع التقريبي على الخريطة لتحديث بيانات الغرض.
+              </p>
 
-            <div
-              style={{
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-bg)",
-                padding: "var(--space-5)",
-              }}
-            >
-              <div
+              <LocationPicker
+                lat={lat}
+                lng={lng}
+                onChange={(latitude, longitude) => {
+                  if (form.status === "open") {
+                    setLat(latitude);
+                    setLng(longitude);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="field edit-report-full">
+              <label className="label" htmlFor="secretDetails" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <IconLock size={15} /> التفاصيل السرية
+              </label>
+
+              <p
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "var(--space-3)",
+                  fontSize: "var(--font-size-sm)",
+                  color: "var(--color-text-muted)",
+                  lineHeight: 1.8,
                 }}
               >
-                <div>
-                  <strong
-                    style={{
-                      display: "block",
-                      marginBottom: "var(--space-1)",
-                    }}
-                  >
-                    الصور الحالية
-                  </strong>
+                هذه المعلومة تستخدم للمساعدة في التحقق من صاحب الغرض ولا
+                ينبغي أن تحتوي على معلومات تريد عرضها للعامة.
+              </p>
 
-                  <p
-                    style={{
-                      fontSize: "var(--font-size-sm)",
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    يمكنك إضافة صور أو حذف الصور الحالية من خلال أداة الصور.
-                  </p>
-                </div>
-
-                <ImageUploader
-                  key={`lost-uploader-${id}`}
-                  lostItemId={id}
-                  initialFiles={uploadedImages}
-                  onUpload={setUploadedImages}
-                />
-              </div>
+              <textarea
+                id="secretDetails"
+                name="secretDetails"
+                className="textarea"
+                value={form.secretDetails}
+                onChange={handleChange}
+                rows={3}
+              />
             </div>
           </div>
+        </fieldset>
 
-          {/* Lost date */}
-          <div className="field">
-            <label className="label" htmlFor="lostAt">
-              التاريخ
-            </label>
-
-            <input
-              id="lostAt"
-              name="lostAt"
-              type="datetime-local"
-              className="input"
-              value={form.lostAt}
-              onChange={handleChange}
-              dir="ltr"
-            />
-          </div>
-
-          {/* Location */}
-          <div className="field edit-report-full">
-            <label className="label">الموقع</label>
-
-            <p
-              style={{
-                fontSize: "var(--font-size-sm)",
-                color: "var(--color-text-muted)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              حدّد الموقع التقريبي على الخريطة لتحديث بيانات البلاغ.
-            </p>
-
-            <LocationPicker
-              lat={lat}
-              lng={lng}
-              onChange={(latitude, longitude) => {
-                setLat(latitude);
-                setLng(longitude);
-              }}
-            />
-          </div>
-
-          {/* Secret details */}
-          <div className="field edit-report-full">
-            <label className="label" htmlFor="secretDetails" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
-              <IconLock size={15} /> التفاصيل السرية
-            </label>
-
-            <p
-              style={{
-                fontSize: "var(--font-size-sm)",
-                color: "var(--color-text-muted)",
-                lineHeight: 1.8,
-              }}
-            >
-              هذه المعلومة تستخدم للمساعدة في التحقق من ملكية الغرض ولا
-              ينبغي أن تحتوي على معلومات تريد عرضها للعامة.
-            </p>
-
-            <textarea
-              id="secretDetails"
-              name="secretDetails"
-              className="textarea"
-              value={form.secretDetails}
-              onChange={handleChange}
-              rows={3}
-            />
-          </div>
-        </div>
-
-        {/* Actions */}
         <div
           style={{
             marginTop: "var(--space-8)",
@@ -682,12 +806,17 @@ export default function EditLostItemPage() {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={loading}
-            style={{
-              width: "100%",
-            }}
+            disabled={loading || form.status !== "open"}
+            style={{ width: "100%" }}
           >
-            {loading ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+            {loading ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                جارٍ الحفظ...
+              </span>
+            ) : "حفظ التعديلات"}
           </button>
 
           <button
@@ -695,9 +824,7 @@ export default function EditLostItemPage() {
             className="btn btn-outline"
             onClick={() => router.back()}
             disabled={loading}
-            style={{
-              width: "100%",
-            }}
+            style={{ width: "100%" }}
           >
             إلغاء
           </button>
@@ -705,12 +832,17 @@ export default function EditLostItemPage() {
           <button
             type="button"
             className="btn btn-danger"
-            onClick={() => setDeleteConfirm(true)}
-            disabled={loading}
+            onClick={() => setDeleteModalOpen(true)}
+            disabled={loading || form.status !== "open"}
             style={{
               width: "100%",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "var(--space-2)",
             }}
           >
+            <IconTrash size={16} />
             حذف البلاغ
           </button>
 
@@ -722,11 +854,9 @@ export default function EditLostItemPage() {
                 router.push("/dashboard/lost");
                 router.refresh();
               }}
-              style={{
-                width: "100%",
-              }}
+              style={{ width: "100%" }}
             >
-              العودة إلى بلاغاتي
+              العودة إلى ما فقدته
             </button>
           )}
         </div>

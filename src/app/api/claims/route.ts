@@ -148,36 +148,65 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // منع تعدد المطالبات من نفس الشخص على نفس الغرض
+    // منع تعدد المطالبات من نفس الشخص على نفس الغرض أو المطابقة
     const [existing] = await db
-      .select({ id: claims.id })
+      .select({ id: claims.id, status: claims.status })
       .from(claims)
       .where(
         and(
           type === "found" ? eq(claims.foundItemId, targetId) : eq(claims.lostItemId, targetId),
-          eq(claims.claimantId, session.id)
+          eq(claims.claimantId, session.id),
+          or(eq(claims.status, "pending"), eq(claims.status, "verified"))
         )
       )
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ error: "لديك مطالبة مسبقة على هذا الغرض" }, { status: 409 });
+      return NextResponse.json(
+        {
+          error:
+            existing.status === "verified"
+              ? "تم قبول وإثبات مطالبتك مسبقاً على هذا الغرض، يمكنك الانتقال لجدولة موعد الاستلام"
+              : "لديك مطالبة سابقة قيد المراجعة والتحقق على هذا الغرض بالفعل",
+        },
+        { status: 409 }
+      );
     }
 
-    // تشغيل التحقق التلقائي من التفاصيل السرية إذا وُجدت
-    let status: "pending" | "verified" | "rejected" = "pending";
+    if (matchId) {
+      const [existingMatchClaim] = await db
+        .select({ id: claims.id, status: claims.status })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.matchId, matchId),
+            eq(claims.claimantId, session.id),
+            or(eq(claims.status, "pending"), eq(claims.status, "verified"))
+          )
+        )
+        .limit(1);
+
+      if (existingMatchClaim) {
+        return NextResponse.json(
+          {
+            error:
+              existingMatchClaim.status === "verified"
+                ? "تم قبول وإثبات مطالبتك مسبقاً على هذه المطابقة، يمكنك الانتقال لجدولة موعد الاستلام"
+                : "توجد مطالبة سابقة قيد المراجعة والتحقق على هذه المطابقة بالفعل",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // فحص نسبة تطابق العلامات السرية إن وجدت للمساعدة في المراجعة
+    const status = "pending" as const;
     let verificationNotes: string | undefined;
 
     if (secretDetails) {
-      const { passed, score } = verifyProof(proofDescription, secretDetails);
+      const { score } = verifyProof(proofDescription, secretDetails);
       const pct = Math.round(score * 100);
-      if (passed) {
-        status = "verified";
-        verificationNotes = `التحقق التلقائي نجح (تطابق ${pct}%)`;
-      } else {
-        status = "rejected";
-        verificationNotes = `التحقق التلقائي فشل (تطابق ${pct}% — الحد الأدنى 50%)`;
-      }
+      verificationNotes = `نسبة تطابق الكلمات مع التفاصيل السرية: ${pct}%`;
     }
 
     const [claim] = await db
@@ -194,57 +223,19 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // عند نجاح التحقق التلقائي: قفل حالة الغرض من open إلى claimed
-    if (status === "verified") {
-      const now = new Date();
-      if (type === "found") {
-        await db
-          .update(foundItems)
-          .set({ status: "claimed", updatedAt: now })
-          .where(eq(foundItems.id, targetId));
-      } else {
-        await db
-          .update(lostItems)
-          .set({ status: "claimed", updatedAt: now })
-          .where(eq(lostItems.id, targetId));
-      }
-
-      await Promise.all([
-        notify({
-          userId: session.id,
-          type: "claim.verified",
-          title: "تم إثبات ملكيتك للغرض بنجاح!",
-          body: "تم التحقق من إثبات الملكية بنجاح. يمكنك الآن الانتقال لجدولة موعد ونقطة الاستلام.",
-          link: "/dashboard/recoveries",
-        }),
-        notify({
-          userId: targetUserId,
-          type: "claim.verified",
-          title: "تم توثيق مطالبة معتمدة على غرضك",
-          body: "تم التحقق من ملكية الغرض المنشور بنجاح وجاهز لخطوة الجدولة والتسليم.",
-          link: "/dashboard/recoveries",
-        }),
-      ]);
-    } else if (status === "rejected") {
-      await notify({
-        userId: session.id,
-        type: "claim.rejected",
-        title: "لم يتم قبول المطالبة",
-        body: "عذراً، لم تتطابق التفاصيل المقدمة مع بيانات الغرض المسجلة.",
-        link: "/dashboard/claims",
-      });
-    } else {
-      await notify({
-        userId: targetUserId,
-        type: "claim.created",
-        title: "مطالبة جديدة واردة",
-        body: "تلقيت مطالبة جديدة على غرض منشور بواسطتك وبانتظار المراجعة.",
-        link: type === "found" ? `/dashboard/found/${targetId}` : `/dashboard/lost/${targetId}`,
-      });
-    }
+    // إشعار صاحب الغرض (الملتقط) لمراجعة إثبات الملكية في /dashboard/claims
+    await notify({
+      userId: targetUserId,
+      type: "claim.created",
+      title: "مطالبة جديدة واردة بإثبات الملكية",
+      body: "قام صاحب المفقود بتقديم إثبات الملكية، يرجى مراجعة الدليل وقبوله للمتابعة لجدولة الاستلام.",
+      link: "/dashboard/claims",
+    });
 
     revalidatePath("/dashboard/claims");
     revalidatePath("/dashboard/claims", "page");
+    revalidatePath("/dashboard/matches");
+    revalidatePath("/dashboard/recoveries");
     revalidatePath("/dashboard");
 
     return NextResponse.json(

@@ -77,7 +77,7 @@ export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }
       if (data.status === "verified") {
         router.push(`/dashboard/recoveries?claimId=${data.id}&action=schedule`);
       } else {
-        router.push("/dashboard/claims");
+        router.push("/dashboard/claims?tab=outgoing");
       }
       router.refresh();
     } catch (err) {

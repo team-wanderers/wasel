@@ -274,13 +274,17 @@ export default async function AdminPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+          <Link href="/admin/items" className="btn btn-primary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <IconPackage size={14} /> إدارة ومراجعة البلاغات
+          </Link>
+
           <form action="/api/match/run" method="POST">
             <button
               type="submit"
-              className="btn btn-primary btn-sm"
+              className="btn btn-outline btn-sm"
               style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}
             >
-              <IconPlay size={14} /> تشغيل محرك المطابقة الذكية
+              <IconPlay size={14} /> تشغيل محرك المطابقة
             </button>
           </form>
 
