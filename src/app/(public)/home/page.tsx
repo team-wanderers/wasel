@@ -81,9 +81,9 @@ export default async function HomePage() {
       <section className="portal-hero">
         <div className="portal-hero-copy">
           <h1>
-            منصةواصل،
+            منصة موحدة
             <br />
-            الموقع الموحد للمفقودات.
+            للمفقودات والموجودات
           </h1>
           <p>بلّغ عن مفقوداتك، أو ابحث عن شيء فُقد في عتق وأي مكان في محافظة شبوة.</p>
         </div>
