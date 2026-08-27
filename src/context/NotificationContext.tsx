@@ -160,6 +160,10 @@ export function NotificationProvider({
   );
 }
 
+export function useNotificationsOptional() {
+  return useContext(NotificationContext);
+}
+
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (!context) {

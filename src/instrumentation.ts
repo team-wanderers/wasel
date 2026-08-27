@@ -1,3 +1,1 @@
-export async function register() {
-  // تم تطبيق الترحيل يدوياً عبر drizzle-kit push
-}
+export async function register() {}

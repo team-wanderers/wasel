@@ -1,236 +1,309 @@
 import Link from "next/link";
+import Image from "next/image";
+import { count, desc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { foundItems, pickupPoints, recoveries, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { getFirstMediaMap } from "@/lib/media";
+import { categoryLabels, formatRelativeAr, searchCategories } from "@/lib/labels";
 import {
-  IconCheck,
-  IconLock,
-  IconMapPin,
+  IconBag,
+  IconBookmark,
+  IconBriefcase,
+  IconChevron,
+  IconFileText,
+  IconHandshake,
+  IconKey,
+  IconPaw,
+  IconPhone,
   IconSearch,
+  IconShield,
+  IconUsers,
+  IconWallet,
+  IconWatch,
 } from "@/components/icons";
-import Reveal from "@/components/Reveal";
-import SiteFooter from "@/components/SiteFooter";
+
+function fmt(n: number) {
+  return n.toLocaleString("ar-EG");
+}
+
+const browseCats = [
+  { value: "electronics", label: "إلكترونيات", icon: <IconPhone size={40} /> },
+  { value: "bags", label: "محافظ وهويات", icon: <IconWallet size={40} /> },
+  { value: "documents", label: "وثائق", icon: <IconBag size={40} /> },
+  { value: "keys", label: "مفاتيح", icon: <IconKey size={40} /> },
+  { value: "jewelry", label: "مجوهرات وساعات", icon: <IconWatch size={40} /> },
+  { value: "pets", label: "حيوانات", icon: <IconPaw size={40} /> },
+];
 
 export default async function HomePage() {
   const session = await getSession();
 
+  const [foundCountRow, returnedCountRow, userCountRow, pointCountRow, latestFound] =
+    await Promise.all([
+      db.select({ count: count() }).from(foundItems),
+      db
+        .select({ count: count() })
+        .from(recoveries)
+        .where(eq(recoveries.status, "completed")),
+      db.select({ count: count() }).from(users),
+      db
+        .select({ count: count() })
+        .from(pickupPoints)
+        .where(eq(pickupPoints.isActive, true)),
+      db
+        .select({
+          id: foundItems.id,
+          title: foundItems.title,
+          category: foundItems.category,
+          createdAt: foundItems.createdAt,
+        })
+        .from(foundItems)
+        .orderBy(desc(foundItems.createdAt))
+        .limit(3),
+    ]);
+
+  const media = await getFirstMediaMap(
+    latestFound.map((row) => row.id),
+    "found",
+  );
+
+  const foundTotal = Number(foundCountRow[0]?.count ?? 0);
+  const returnedTotal = Number(returnedCountRow[0]?.count ?? 0);
+  const userTotal = Number(userCountRow[0]?.count ?? 0);
+  const pointTotal = Number(pointCountRow[0]?.count ?? 0);
+
+  const reportHref = session ? "/dashboard/lost/new" : "/register";
+  const foundHref = session ? "/dashboard/found/new" : "/register";
+
   return (
-    <div dir="rtl">
-      <div className="blob-field" aria-hidden="true">
-        <div className="blob blob-blue" style={{ top: "-10rem", right: "-10rem", width: "24rem", height: "24rem" }} />
-        <div className="blob blob-green" style={{ top: "45%", left: "-10rem", width: "22rem", height: "22rem" }} />
-        <div className="blob blob-indigo" style={{ bottom: "-6rem", right: "30%", width: "18rem", height: "18rem" }} />
-      </div>
-
-      <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Hero */}
-        <section
-          className="hero-gradient"
-          style={{ padding: "var(--space-16) 0", textAlign: "center" }}
-        >
-          <div className="banner-glow" style={{ top: "-8rem", left: "-6rem", width: "20rem", height: "20rem", background: "hsl(210 80% 60% / 0.35)" }} />
-          <div className="banner-glow" style={{ bottom: "-10rem", right: "-4rem", width: "22rem", height: "22rem", background: "hsl(142 60% 50% / 0.18)" }} />
-
-          <div className="container" style={{ position: "relative" }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-                padding: "var(--space-2) var(--space-4)",
-                borderRadius: "100px",
-                background: "hsl(0 0% 100% / 0.14)",
-                border: "1px solid hsl(0 0% 100% / 0.25)",
-                color: "#fff",
-                fontSize: "var(--font-size-sm)",
-                fontWeight: 700,
-                marginBottom: "var(--space-6)",
-              }}
-            >
-              <span
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "hsl(142, 65%, 55%)",
-                  animation: "eyebrow-pulse 2s ease-in-out infinite",
-                }}
-              />
-              منصة المفقودات والمعثورات
-            </span>
-
-            <h1
-              style={{
-                fontSize: "clamp(2.4rem, 6vw, 4.2rem)",
-                fontWeight: 800,
-                lineHeight: 1.25,
-                marginBottom: "var(--space-5)",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              ما فقدته
-              <br />
-              <span style={{ color: "hsl(210, 90%, 78%)" }}>قد يكون أقرب مما تتوقع.</span>
-            </h1>
-
-            <p
-              style={{
-                fontSize: "var(--font-size-lg)",
-                color: "hsl(210, 70%, 90%)",
-                maxWidth: "600px",
-                margin: "0 auto var(--space-8)",
-                lineHeight: 1.9,
-              }}
-            >
-              نظام إدارة المفقودات في مدينة عتق ومحافظة شبوة — أبلغ عن غرضك
-              المفقود ودع محرك المطابقة الذكي يعمل نيابةً عنك.
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--space-4)",
-                justifyContent: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <Link href="/search" className="btn btn-white btn-lg-hero">
-                ابدأ الآن ←
-              </Link>
-              {session ? (
-                <Link href="/dashboard" className="btn btn-outline-white">
-                  لوحتي
-                </Link>
-              ) : (
-                <Link href="/login" className="btn btn-outline-white">
-                  لدي حساب بالفعل
-                </Link>
+    <>
+      <section className="portal-hero">
+        <div className="portal-hero-copy">
+          <h1>
+            منصةواصل،
+            <br />
+            الموقع الموحد للمفقودات.
+          </h1>
+          <p>بلّغ عن مفقوداتك، أو ابحث عن شيء فُقد في عتق وأي مكان في محافظة شبوة.</p>
+        </div>
+        <div className="portal-hero-art">
+          <Image
+            src="/city.webp"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 900px) 100vw, 52vw"
+          />
+        </div>
+        <form className="portal-search" action="/search" method="get">
+          <label className="portal-search-cat">
+            <span className="sr-only">التصنيف</span>
+            <select name="category" defaultValue="">
+              <option value="">جميع التصنيفات</option>
+              {searchCategories.map((c) =>
+                c.value ? (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ) : null,
               )}
-            </div>
+            </select>
+          </label>
+          <label className="portal-search-q">
+            <span className="sr-only">عبارة البحث</span>
+            <input
+              name="q"
+              type="search"
+              placeholder="ابحث عن شيء (مثل: محفظة، هاتف، مفاتيح...)"
+            />
+          </label>
+          <button type="submit" className="btn btn-primary">
+            بحث
+            <IconSearch size={16} />
+          </button>
+        </form>
+      </section>
+
+      <section className="portal-stats">
+        <div>
+          <span className="portal-stat-ico is-blue">
+            <IconBriefcase size={32} />
+          </span>
+          <div>
+            <strong>{fmt(foundTotal)}</strong>
+            <b>مفقود تم العثور عليه</b>
+            <small>حتى الآن</small>
           </div>
-        </section>
-
-        {/* Trust Row */}
-        <section className="container" style={{ marginTop: "calc(var(--space-12) * -1)", position: "relative", zIndex: 2 }}>
-          <div className="grid-cards">
-            {[
-              { icon: <IconCheck size={26} />, label: "تجربة بسيطة", tile: "tile-green" },
-              { icon: <IconSearch size={26} />, label: "بحث منظم", tile: "tile-blue" },
-              { icon: <IconLock size={26} />, label: "خصوصية أفضل", tile: "tile-purple" },
-            ].map((item, index) => (
-              <Reveal key={item.label} delay={index * 100}>
-                <div className="card card-hover" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4) var(--space-6)" }}>
-                  <div className={`step-tile ${item.tile}`} style={{ marginBottom: 0 }}>
-                    {item.icon}
-                  </div>
-                  <strong style={{ fontSize: "var(--font-size-base)" }}>{item.label}</strong>
-                </div>
-              </Reveal>
-            ))}
+        </div>
+        <div>
+          <span className="portal-stat-ico is-green">
+            <IconBookmark size={32} />
+          </span>
+          <div>
+            <strong>{fmt(returnedTotal)}</strong>
+            <b>تمت إعادته</b>
+            <small>إلى أصحابه</small>
           </div>
-        </section>
-
-        {/* How it works */}
-        <section className="container" style={{ padding: "var(--space-16) var(--space-4)" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
-              <span className="eyebrow">كيف يعمل واصل؟</span>
-              <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 800, letterSpacing: "-0.02em" }}>
-                أربع خطوات فقط لاستعادة غرضك
-              </h2>
-            </div>
-          </Reveal>
-
-          <div className="grid-cards">
-            {[
-              { num: "01", title: "سجِّل", desc: "أنشئ حسابك خلال لحظات ببريدك الإلكتروني فقط", tile: "tile-blue" },
-              { num: "02", title: "أبلِغ", desc: "أضف بلاغ مفقود أو موجّه بالتفاصيل والصور والموقع", tile: "tile-indigo" },
-              { num: "03", title: "طابِق", desc: "محرك المطابقة يقارن البلاغات تلقائياً وينبّه الطرفين", tile: "tile-green" },
-              { num: "04", title: "استعد", desc: "تحقق آمن يثبت الملكية والتسليم في نقطة أمانة معتمدة", tile: "tile-purple" },
-            ].map((step, index) => (
-              <Reveal key={step.num} delay={index * 120}>
-                <div className="card card-hover" style={{ height: "100%" }}>
-                  <div className={`step-tile ${step.tile}`}>{step.num}</div>
-                  <h3 style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
-                    {step.title}
-                  </h3>
-                  <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", lineHeight: 1.8 }}>
-                    {step.desc}
-                  </p>
-                </div>
-              </Reveal>
-            ))}
+        </div>
+        <div>
+          <span className="portal-stat-ico is-orange">
+            <IconUsers size={32} />
+          </span>
+          <div>
+            <strong>{fmt(userTotal)}</strong>
+            <b>مستخدم نشط</b>
+            <small>على المنصة</small>
           </div>
-        </section>
-
-        {/* Features */}
-        <section className="container" style={{ paddingBottom: "var(--space-16)" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
-              <span className="eyebrow">لماذا واصل؟</span>
-              <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 800, letterSpacing: "-0.02em" }}>
-                كل ما تحتاجه في منصة واحدة
-              </h2>
-            </div>
-          </Reveal>
-
-          <div className="grid-cards">
-            {[
-              { icon: <IconSearch size={40} />, title: "محرك مطابقة ذكي", desc: "يُقارن البلاغات تلقائياً بناءً على التصنيف والوصف والموقع الجغرافي" },
-              { icon: <IconLock size={40} />, title: "تحقق آمن", desc: "بياناتك السرية لا تُكشف أبداً — التحقق يثبت هويتك دون انكشاف تفاصيلك" },
-              { icon: <IconMapPin size={40} />, title: "نقاط أمانة معتمدة", desc: "تسليم المفقودات في مواقع آمنة ومحايدة داخل المدينة" },
-            ].map((f, index) => (
-              <Reveal key={f.title} delay={index * 120}>
-                <div className="card card-hover" style={{ textAlign: "center", height: "100%" }}>
-                  <div
-                    style={{
-                      color: "var(--color-primary)",
-                      display: "flex",
-                      justifyContent: "center",
-                      marginBottom: "var(--space-4)",
-                    }}
-                  >
-                    {f.icon}
-                  </div>
-                  <h3 style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
-                    {f.title}
-                  </h3>
-                  <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", lineHeight: 1.8 }}>
-                    {f.desc}
-                  </p>
-                </div>
-              </Reveal>
-            ))}
+        </div>
+        <div>
+          <span className="portal-stat-ico is-purple">
+            <IconShield size={32} />
+          </span>
+          <div>
+            <strong>{fmt(pointTotal)}</strong>
+            <b>نقطة أمانة</b>
+            <small>تعتمدها المنصة</small>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* CTA */}
-        <section className="container" style={{ paddingBottom: "var(--space-8)" }}>
-          <Reveal>
-            <div className="dark-banner" style={{ padding: "var(--space-12) var(--space-8)", textAlign: "center" }}>
-              <div className="banner-glow" style={{ top: "-6rem", right: "20%", width: "18rem", height: "18rem", background: "hsl(210 80% 55% / 0.35)" }} />
-              <div className="banner-glow" style={{ bottom: "-8rem", left: "10%", width: "16rem", height: "16rem", background: "hsl(142 60% 50% / 0.22)" }} />
-
-              <div style={{ position: "relative" }}>
-                <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 800, marginBottom: "var(--space-4)" }}>
-                  فقدت شيئاً؟ أو وجدت غرضاً؟
-                </h2>
-                <p style={{ color: "hsl(220, 15%, 75%)", marginBottom: "var(--space-8)", maxWidth: "520px", marginInline: "auto" }}>
-                  أضف بلاغاً الآن وسيتواصل معك النظام فور وجود تطابق
-                </p>
-                <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
-                  <Link href={session ? "/dashboard/lost/new" : "/register"} className="btn btn-primary">
-                    أبلِغ عن مفقود
-                  </Link>
-                  <Link href={session ? "/dashboard/found/new" : "/register"} className="btn btn-outline-white">
-                    سلِّم غرضاً وجدته
-                  </Link>
-                </div>
+      <section className="portal-grid">
+        <article className="portal-card">
+          <h2>كيف تعمل الخدمة</h2>
+          <ol className="portal-steps">
+            <li>
+              <span>
+                <IconFileText size={36} />
+              </span>
+              <div>
+                <b>بلّغ</b>
+                <p>أبلِغ عن مفقود أو موجود بخطوات بسيطة.</p>
               </div>
-            </div>
-          </Reveal>
-        </section>
-      </div>
+            </li>
+            <li>
+              <span>
+                <IconSearch size={36} />
+              </span>
+              <div>
+                <b>طابِق</b>
+                <p>نقوم بمطابقة العناصر مع أصحابها.</p>
+              </div>
+            </li>
+            <li>
+              <span>
+                <IconHandshake size={36} />
+              </span>
+              <div>
+                <b>أَعِد</b>
+                <p>نعيد الأشياء إلى أصحابها بأمان وسهولة.</p>
+              </div>
+            </li>
+          </ol>
+        </article>
 
-      <SiteFooter />
-    </div>
+        <article className="portal-card">
+          <div className="portal-card-head">
+            <h2>تصفح حسب التصنيف</h2>
+            <Link href="/search">عرض الكل</Link>
+          </div>
+          <div className="portal-cats">
+            {browseCats.map((cat) => (
+              <Link key={cat.value} href={`/search?category=${cat.value}`}>
+                {cat.icon}
+                {cat.label}
+              </Link>
+            ))}
+          </div>
+          <Link href="/search" className="portal-more">
+            جميع التصنيفات
+            <IconChevron size={16} />
+          </Link>
+        </article>
+
+        <article className="portal-card">
+          <div className="portal-card-head">
+            <h2>أحدث المفقودات التي تم العثور عليها</h2>
+            <Link href="/search?type=found">عرض الكل</Link>
+          </div>
+          {latestFound.length === 0 ? (
+            <p className="portal-empty">لا توجد موجودات بعد. كن أول من يبلّغ.</p>
+          ) : (
+            <ul className="portal-latest">
+              {latestFound.map((item, index) => {
+                const src = media.get(item.id);
+                const fresh = index === 0;
+                return (
+                  <li key={item.id}>
+                    <Link href={`/items/found/${item.id}`}>
+                      <span className="portal-thumb">
+                        {src ? (
+                          <Image src={src} alt="" width={56} height={56} />
+                        ) : (
+                          <IconBag size={22} />
+                        )}
+                      </span>
+                      <span>
+                        <b>{item.title}</b>
+                        <small>
+                          {categoryLabels[item.category] ?? item.category}
+                          {" — "}
+                          {formatRelativeAr(item.createdAt)}
+                        </small>
+                      </span>
+                      {fresh && <em>جديد</em>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Link href="/search?type=found" className="portal-more">
+            تصفح جميع المفقودات
+            <IconChevron size={16} />
+          </Link>
+        </article>
+      </section>
+
+      <section className="portal-split">
+        <section className="portal-partners" id="about">
+          <h2>في خدمة عتق ومحافظة شبوة</h2>
+          <p>
+            واصل منصة لإدارة المفقودات والمعثورات وربطها بأصحابها عبر نقاط أمانة معتمدة.
+          </p>
+        </section>
+        <article className="portal-cta">
+          <div>
+            <h2>هل فقدت شيئاً؟</h2>
+            <p>أبلِغ الآن وساعدنا في إعادته إلى صاحبه.</p>
+            <Link href={reportHref} className="btn btn-white btn-sm">
+              الإبلاغ عن مفقود
+              <IconChevron size={16} />
+            </Link>
+          </div>
+          <IconHandshake size={72} />
+        </article>
+      </section>
+
+      <section className="portal-faq" id="faq">
+        <h2>أسئلة شائعة</h2>
+        <details>
+          <summary>كيف أبلّغ عن مفقود؟</summary>
+          <p>أنشئ حساباً ثم أضف بلاغاً بالوصف والصورة والموقع التقريبي.</p>
+        </details>
+        <details>
+          <summary>ماذا أفعل إذا وجدت غرضاً؟</summary>
+          <p>
+            سجّل الموجود من{" "}
+            <Link href={foundHref}>الإبلاغ عن موجود</Link>
+            ، وسنتولى المطابقة مع البلاغات المفتوحة.
+          </p>
+        </details>
+        <details>
+          <summary>أين يتم التسليم؟</summary>
+          <p>يتم التسليم في نقاط الأمانة المعتمدة داخل المدينة بعد التحقق من الملكية.</p>
+        </details>
+      </section>
+    </>
   );
 }

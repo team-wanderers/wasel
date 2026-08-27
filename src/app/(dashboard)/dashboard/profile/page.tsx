@@ -155,7 +155,7 @@ export default async function ProfilePage() {
             marginBottom: "var(--space-3)",
           }}
         >
-          الملف الشخصي
+          حسابي
         </h1>
 
         <p
@@ -179,8 +179,7 @@ export default async function ProfilePage() {
       >
         <div
           style={{
-            background:
-              "linear-gradient(135deg, var(--color-primary), hsl(245, 65%, 48%))",
+            background: "var(--color-header)",
             padding: "var(--space-8)",
             color: "#fff",
           }}

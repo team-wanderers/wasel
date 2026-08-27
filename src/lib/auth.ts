@@ -64,6 +64,7 @@ export type SessionUser = {
   email: string;
   phone: string | null;
   role: "user" | "admin";
+  image: string | null;
 };
 
 export async function getSession(): Promise<SessionUser | null> {
@@ -75,6 +76,7 @@ export async function getSession(): Promise<SessionUser | null> {
     email: session.user.email,
     phone: session.user.phone ?? null,
     role: session.user.role ?? "user",
+    image: session.user.image ?? null,
   };
 }
 
