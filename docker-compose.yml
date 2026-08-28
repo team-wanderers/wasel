@@ -27,7 +27,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - uploads:/app/uploads
+      - uploads:/app/public/uploads
     profiles: ["app"]
 
 volumes:
