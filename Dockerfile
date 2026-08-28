@@ -22,8 +22,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN mkdir -p /app/uploads /app/.next \
-    && chown -R node:node /app/uploads /app/.next
+RUN mkdir -p /app/public/uploads /app/.next \
+    && chown -R node:node /app/public/uploads /app/.next
 
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
