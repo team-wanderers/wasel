@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 const adminLinks = [
   { href: "/admin", label: "لوحة الإحصائيات والمؤشرات" },
   { href: "/admin/items", label: "إدارة ومراجعة البلاغات" },
+  { href: "/admin/users", label: "إدارة المستخدمين والأدوار" },
   { href: "/admin/pickup-points", label: "نقاط الأمانة والاستلام" },
   { href: "/dashboard", label: "لوحة المستخدم الشخصية ←" },
 ];
