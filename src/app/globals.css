@@ -342,7 +342,7 @@ img, video { max-width: 100%; display: block; }
   color: var(--color-text-primary);
 }
 
-/* ── Leaflet map override ────────────────────────────────────────────────── */
+/* ── Map ─────────────────────────────────────────────────────────────────── */
 .map-container {
   height: 320px;
   border-radius: var(--radius-lg);

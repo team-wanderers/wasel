@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Map } from "maplibre-gl";
+import { createCartoMap } from "@/lib/map";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 interface MapViewerProps {
   lat: number;
@@ -10,8 +13,7 @@ interface MapViewerProps {
 
 export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<Map | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -19,7 +21,7 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
     async function initMap() {
       if (typeof window === "undefined" || !containerRef.current) return;
 
-      const L = await import("leaflet");
+      const maplibre = await import("maplibre-gl");
 
       if (isCancelled || !containerRef.current) return;
 
@@ -28,44 +30,18 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
         mapInstanceRef.current = null;
       }
 
-      const el = containerRef.current as HTMLElement & { _leaflet_id?: number | null };
-      if (el._leaflet_id) {
-        delete el._leaflet_id;
-      }
-
-      if (isCancelled) return;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
-      const map = L.map(containerRef.current, {
-        zoomControl: true,
-        dragging: true,
-      }).setView([lat, lng], zoom);
-
+      const map = createCartoMap(maplibre, containerRef.current, [lng, lat], zoom);
       mapInstanceRef.current = map;
 
-      L.tileLayer(
-        `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_API_KEY ?? ""}`,
-        {
-        attribution: "© OpenStreetMap contributors, © CARTO",
-        subdomains: "abcd",
-        maxZoom: 20,
-      }).addTo(map);
-
-      L.marker([lat, lng])
+      new maplibre.Marker()
+        .setLngLat([lng, lat])
+        .setPopup(new maplibre.Popup({ offset: 16, closeButton: false }).setText("الموقع التقريبي"))
         .addTo(map)
-        .bindPopup("الموقع التقريبي")
-        .openPopup();
+        .togglePopup();
 
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
+          mapInstanceRef.current.resize();
         }
       }, 300);
     }
@@ -83,10 +59,6 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
   return (
     <div>
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
       <div
         ref={containerRef}
         className="map-container"
