@@ -60,7 +60,9 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
       mapInstanceRef.current = map;
 
       // طبقة خرائط سريعة وعالية التوافق
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      L.tileLayer(
+        `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_API_KEY ?? ""}`,
+        {
         attribution: "© OpenStreetMap contributors, © CARTO",
         subdomains: "abcd",
         maxZoom: 20,
