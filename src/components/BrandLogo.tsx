@@ -1,0 +1,27 @@
+export default function BrandLogo({
+  size = 42,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 128 128"
+      aria-hidden="true"
+      className={className}
+    >
+      <ellipse cx="64" cy="118" rx="38" ry="7.5" fill="#2E4EC6" />
+      <path
+        fill="#2E4EC6"
+        d="M64 4C40.4 4 21 23.2 21 47c0 20.6 28.6 50.2 40.4 63.2a3.6 3.6 0 0 0 5.2 0C78.4 97.2 107 67.6 107 47 107 23.2 87.6 4 64 4z"
+      />
+      <path
+        fill="#fff"
+        d="M64 70.2C49.2 58.4 38.5 48.6 38.5 37.4c0-8.2 6.4-14.2 13.8-14.2 3.8 0 7.3 1.8 11.7 6.6 4.4-4.8 7.9-6.6 11.7-6.6 7.4 0 13.8 6 13.8 14.2 0 11.2-10.7 21-25.5 32.8z"
+      />
+    </svg>
+  );
+}

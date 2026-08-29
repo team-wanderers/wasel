@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import BrandLogo from "@/components/BrandLogo";
 
 interface AuthShellProps {
   eyebrow: string;
@@ -28,17 +29,36 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
       </div>
 
       <div style={{ width: "100%", maxWidth: "440px", position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: "var(--space-6)" }}>
-          <div
-            style={{
-              fontSize: "2rem",
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: "var(--color-text-primary)",
-            }}
-          >
-            WASEL{" "}
-            <span style={{ color: "var(--color-primary)", fontWeight: 700 }}>| واصل</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          <BrandLogo size={48} />
+          <div style={{ textAlign: "start", lineHeight: 1.2 }}>
+            <div
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              واصل
+            </div>
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              خدمة محلية
+            </div>
           </div>
         </div>
 

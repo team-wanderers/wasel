@@ -1027,15 +1027,9 @@ img, video { max-width: 100%; display: block; }
   font-weight: 600;
 }
 
-.portal-pin {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--portal-blue);
-  color: #fff;
-  display: grid;
-  place-items: center;
+.portal-logo {
   flex-shrink: 0;
+  display: block;
 }
 
 .portal-top-actions {

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { headers } from "next/headers";
+import BrandLogo from "@/components/BrandLogo";
 
 const adminLinks = [
   { href: "/admin", label: "لوحة الإحصائيات والمؤشرات" },
@@ -24,7 +25,8 @@ export default async function AdminLayout({
       <nav className="navbar">
         <div className="container navbar-inner">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
-            <Link href="/admin" className="navbar-logo">
+            <Link href="/admin" className="navbar-logo" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <BrandLogo size={36} />
               واصل — الإدارة
             </Link>
             <span
