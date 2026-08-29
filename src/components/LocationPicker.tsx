@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Map, Marker } from "maplibre-gl";
+import { createCartoMap } from "@/lib/map";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const ATAQ_LAT = 14.5372;
 const ATAQ_LNG = 46.8319;
@@ -14,10 +17,8 @@ interface LocationPickerProps {
 
 export default function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapInstanceRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markerRef = useRef<any>(null);
+  const mapInstanceRef = useRef<Map | null>(null);
+  const markerRef = useRef<Marker | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -25,7 +26,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     async function initMap() {
       if (typeof window === "undefined" || !containerRef.current) return;
 
-      const L = await import("leaflet");
+      const maplibre = await import("maplibre-gl");
 
       if (isCancelled || !containerRef.current) return;
 
@@ -34,53 +35,29 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         mapInstanceRef.current = null;
       }
 
-      const el = containerRef.current as HTMLElement & { _leaflet_id?: number | null };
-      if (el._leaflet_id) {
-        delete el._leaflet_id;
-      }
-
-      if (isCancelled) return;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
       const initialLat = lat ?? ATAQ_LAT;
       const initialLng = lng ?? ATAQ_LNG;
 
-      const map = L.map(containerRef.current, {
-        zoomControl: true,
-        dragging: true,
-      }).setView([initialLat, initialLng], DEFAULT_ZOOM);
-
+      const map = createCartoMap(maplibre, containerRef.current, [initialLng, initialLat], DEFAULT_ZOOM);
       mapInstanceRef.current = map;
 
-      // طبقة خرائط سريعة وعالية التوافق
-      L.tileLayer(
-        `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_API_KEY ?? ""}`,
-        {
-        attribution: "© OpenStreetMap contributors, © CARTO",
-        subdomains: "abcd",
-        maxZoom: 20,
-      }).addTo(map);
-
-      const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+      const marker = new maplibre.Marker({ draggable: true })
+        .setLngLat([initialLng, initialLat])
+        .setPopup(
+          new maplibre.Popup({ offset: 16, closeButton: false }).setText("حرِّك الدبوس لتحديد الموقع"),
+        )
+        .addTo(map);
+      marker.togglePopup();
       markerRef.current = marker;
 
-      marker.bindPopup("حرِّك الدبوس لتحديد الموقع").openPopup();
-
       marker.on("dragend", () => {
-        const pos = marker.getLatLng();
+        const pos = marker.getLngLat();
         onChange(pos.lat, pos.lng);
       });
 
-      map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
-        marker.setLatLng(e.latlng);
-        onChange(e.latlng.lat, e.latlng.lng);
+      map.on("click", (e) => {
+        marker.setLngLat(e.lngLat);
+        onChange(e.lngLat.lat, e.lngLat.lng);
       });
 
       if (lat && lng) {
@@ -89,7 +66,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
 
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
+          mapInstanceRef.current.resize();
         }
       }, 300);
     }
@@ -108,10 +85,6 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
 
   return (
     <div>
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
       <div
         ref={containerRef}
         className="map-container"
