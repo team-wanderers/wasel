@@ -36,19 +36,37 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount);
   const [loading, setLoading] = useState(false);
+  const markAllLockUntilRef = React.useRef<number>(0);
 
   const fetchLatest = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications?limit=50", {
+        cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store" },
       });
       if (res.ok) {
         const data = await res.json();
+        const isLocked = Date.now() < markAllLockUntilRef.current;
+
         if (Array.isArray(data.notifications)) {
-          setNotifications(data.notifications);
+          if (isLocked) {
+            setNotifications(
+              data.notifications.map((n: NotificationItem) => ({
+                ...n,
+                readAt: n.readAt ? n.readAt : new Date().toISOString(),
+              }))
+            );
+          } else {
+            setNotifications(data.notifications);
+          }
         }
+
         if (typeof data.unreadCount === "number") {
-          setUnreadCount(data.unreadCount);
+          if (isLocked) {
+            setUnreadCount(0);
+          } else {
+            setUnreadCount(data.unreadCount);
+          }
         }
       }
     } catch (e) {
@@ -57,39 +75,11 @@ export function NotificationProvider({
   }, []);
 
   useEffect(() => {
-    let ignore = false;
-
-    async function initFetch() {
-      try {
-        const res = await fetch("/api/notifications?limit=50", {
-          headers: { "Cache-Control": "no-cache, no-store" },
-        });
-        if (res.ok && !ignore) {
-          const data = await res.json();
-          if (Array.isArray(data.notifications)) {
-            setNotifications(data.notifications);
-          }
-          if (typeof data.unreadCount === "number") {
-            setUnreadCount(data.unreadCount);
-          }
-        }
-      } catch (e) {
-        if (!ignore) {
-          console.error("[NotificationContext] Failed to fetch notifications", e);
-        }
-      }
-    }
-
-    initFetch();
-
     const interval = setInterval(() => {
       fetchLatest();
-    }, 20000);
+    }, 4000);
 
-    return () => {
-      ignore = true;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [fetchLatest]);
 
   const markAsRead = useCallback(async (id: string) => {
@@ -110,6 +100,7 @@ export function NotificationProvider({
     try {
       await fetch(`/api/notifications/${id}`, {
         method: "PATCH",
+        cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store" },
       });
     } catch (err) {
@@ -118,7 +109,10 @@ export function NotificationProvider({
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    // 1. Optimistic update
+    // 1. Set 5-second lock against stale polling overwrite
+    markAllLockUntilRef.current = Date.now() + 5000;
+
+    // 2. Optimistic update
     setNotifications((prev) =>
       prev.map((n) => ({
         ...n,
@@ -127,10 +121,11 @@ export function NotificationProvider({
     );
     setUnreadCount(0);
 
-    // 2. Background API call
+    // 3. Background API call
     try {
       await fetch("/api/notifications/read-all", {
         method: "POST",
+        cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store" },
       });
     } catch (err) {

@@ -104,16 +104,7 @@ export default function ClaimForm({ itemType, itemId, counterpartId, onSuccess }
             aria-modal="true"
             aria-label="تأكيد المطالبة"
             onClick={() => setShowConfirm(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0, 0, 0, 0.5)",
-              zIndex: 50,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "var(--space-4)",
-            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           >
             <div
               onClick={(e) => e.stopPropagation()}

@@ -64,6 +64,14 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         onChange(lat, lng);
       }
 
+      map.resize();
+
+      setTimeout(() => {
+        if (!isCancelled && mapInstanceRef.current) {
+          mapInstanceRef.current.resize();
+        }
+      }, 100);
+
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
           mapInstanceRef.current.resize();
@@ -87,8 +95,8 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     <div>
       <div
         ref={containerRef}
-        className="map-container"
-        style={{ minHeight: "320px", width: "100%", borderRadius: "var(--radius-md)" }}
+        className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
+        style={{ minHeight: "256px" }}
         aria-label="خريطة تحديد الموقع"
       />
       {lat && lng && (

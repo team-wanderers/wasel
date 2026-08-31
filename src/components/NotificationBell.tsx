@@ -47,7 +47,17 @@ export default function NotificationBell() {
     <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          setIsOpen((prev) => {
+            const next = !prev;
+            if (next) {
+              void markAllAsRead().then(() => {
+                router.refresh();
+              });
+            }
+            return next;
+          });
+        }}
         aria-label="التنبيهات والإشعارات"
         style={{
           position: "relative",
@@ -155,7 +165,11 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 type="button"
-                onClick={() => markAllAsRead()}
+                onClick={() => {
+                  void markAllAsRead().then(() => {
+                    router.refresh();
+                  });
+                }}
                 disabled={loading}
                 style={{
                   background: "none",

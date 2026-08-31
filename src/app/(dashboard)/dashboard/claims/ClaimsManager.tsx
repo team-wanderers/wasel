@@ -49,13 +49,11 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
   const tabParam = searchParams.get("tab");
 
   const [claimsList, setClaimsList] = useState<ClaimItem[]>(initialClaims);
-  const [selectedTab, setSelectedTab] = useState<"incoming" | "outgoing" | "all" | null>(null);
 
   const activeTab: "incoming" | "outgoing" | "all" =
-    selectedTab ??
-    (tabParam === "outgoing" || tabParam === "incoming" || tabParam === "all"
+    tabParam === "outgoing" || tabParam === "incoming" || tabParam === "all"
       ? tabParam
-      : "incoming");
+      : "incoming";
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -157,7 +155,9 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
       >
         <button
           type="button"
-          onClick={() => setSelectedTab("incoming")}
+          onClick={() => {
+            router.replace("/dashboard/claims?tab=incoming", { scroll: false });
+          }}
           style={{
             padding: "var(--space-3) var(--space-4)",
             borderBottom: activeTab === "incoming" ? "2px solid var(--color-primary)" : "2px solid transparent",
@@ -192,7 +192,9 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
 
         <button
           type="button"
-          onClick={() => setSelectedTab("outgoing")}
+          onClick={() => {
+            router.replace("/dashboard/claims?tab=outgoing", { scroll: false });
+          }}
           style={{
             padding: "var(--space-3) var(--space-4)",
             borderBottom: activeTab === "outgoing" ? "2px solid var(--color-primary)" : "2px solid transparent",
@@ -226,7 +228,9 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
 
         <button
           type="button"
-          onClick={() => setSelectedTab("all")}
+          onClick={() => {
+            router.replace("/dashboard/claims?tab=all", { scroll: false });
+          }}
           style={{
             padding: "var(--space-3) var(--space-4)",
             borderBottom: activeTab === "all" ? "2px solid var(--color-primary)" : "2px solid transparent",
@@ -265,9 +269,12 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {displayedClaims.map((row) => {
             const isBlocked = isItemAdminBlocked(row.foundStatus) || isItemAdminBlocked(row.lostStatus);
+            const isCompleted = row.recoveryStatus === "completed";
             let s = statusDisplay[row.status] ?? statusDisplay.pending;
             if (isBlocked) {
               s = { label: "بلاغ مغلق إدارياً", color: "hsl(0, 0%, 40%)", bg: "hsl(0, 0%, 90%)" };
+            } else if (isCompleted) {
+              s = { label: "✓ تم الاستلام والاسترجاع (مغلق)", color: "hsl(142,60%,25%)", bg: "var(--color-success-light)" };
             }
 
             const isIncoming =
@@ -458,8 +465,24 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
                         )}
 
                         {row.status === "verified" && (
-                          row.recoveryStatus &&
-                          ["scheduled", "in_progress", "deposited", "completed"].includes(
+                          isCompleted ? (
+                            <span
+                              className="btn btn-sm"
+                              style={{
+                                color: "hsl(142,60%,25%)",
+                                borderColor: "hsl(142,60%,75%)",
+                                background: "var(--color-success-light)",
+                                fontWeight: 700,
+                                cursor: "default",
+                                pointerEvents: "none",
+                                opacity: 0.95,
+                              }}
+                            >
+                              <IconCheck size={14} />
+                              <span>✓ تم الاستلام والاسترجاع (مغلق)</span>
+                            </span>
+                          ) : row.recoveryStatus &&
+                          ["scheduled", "in_progress", "deposited"].includes(
                             row.recoveryStatus
                           ) ? (
                             <Link
