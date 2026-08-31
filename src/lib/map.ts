@@ -1,12 +1,32 @@
-import type { Map } from "maplibre-gl";
+import type { Map, StyleSpecification } from "maplibre-gl";
+
+const MAPLIBRE_WORKER =
+  "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl-worker.mjs";
 
 function withCartoKey(url: string, key: string): string {
   if (!key || !url.includes("cartocdn.com") || /[?&]key=/.test(url)) return url;
   return `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`;
 }
 
-export function cartoVoyagerStyle(key: string): string {
-  return withCartoKey("https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json", key);
+export function cartoVoyagerStyle(key: string): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      carto: {
+        type: "raster",
+        tiles: ["a", "b", "c", "d"].map((s) =>
+          withCartoKey(
+            `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png`,
+            key,
+          ),
+        ),
+        tileSize: 256,
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+      },
+    },
+    layers: [{ id: "carto", type: "raster", source: "carto" }],
+  };
 }
 
 export function createCartoMap(
@@ -17,6 +37,10 @@ export function createCartoMap(
   key = "",
 ): Map {
   container.dir = "ltr";
+
+  if (maplibre.getWorkerUrl() !== MAPLIBRE_WORKER) {
+    maplibre.setWorkerUrl(MAPLIBRE_WORKER);
+  }
 
   if (maplibre.getRTLTextPluginStatus() === "unavailable") {
     void maplibre.setRTLTextPlugin(
