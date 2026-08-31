@@ -21,7 +21,7 @@ export default async function AboutPage() {
   const foundHref = session ? "/dashboard/report?type=found" : "/register";
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div style={{ maxWidth: 760, width: "100%" }}>
       <h1 className="page-title">عن الخدمة</h1>
 
       <article className="portal-card" style={{ marginBottom: 16 }}>

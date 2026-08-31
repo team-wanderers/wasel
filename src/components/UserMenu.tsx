@@ -40,10 +40,10 @@ export default function UserMenu({
     <div className="portal-user" ref={rootRef}>
       <button
         type="button"
-        className="portal-icon-btn"
+        className="portal-user-btn"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="قائمة الحساب"
+        aria-label={`قائمة الحساب، ${displayName}`}
         onClick={() => setOpen((prev) => !prev)}
       >
         {image ? (
@@ -52,6 +52,7 @@ export default function UserMenu({
         ) : (
           <IconUser size={21} />
         )}
+        <span className="portal-user-name">{displayName}</span>
       </button>
       {open && (
         <div className="portal-user-panel" role="menu">
