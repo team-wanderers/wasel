@@ -1062,6 +1062,31 @@ img, video { max-width: 100%; display: block; }
 
 .portal-user { position: relative; }
 
+.portal-user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  max-width: 200px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--portal-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portal-user-btn:hover { background: var(--portal-soft); color: var(--portal-ink); }
+
+.portal-user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .portal-user-avatar {
   width: 24px;
   height: 24px;
@@ -1370,6 +1395,11 @@ img, video { max-width: 100%; display: block; }
   min-height: 0;
   padding: 16px 28px 40px;
   overflow-y: scroll;
+}
+
+.portal-main > * {
+  width: 100%;
+  margin-inline: auto;
 }
 
 .portal-main::-webkit-scrollbar {

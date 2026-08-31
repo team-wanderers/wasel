@@ -71,7 +71,7 @@ export default async function DashboardItemsPage({
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
       <div className="page-header">
         <h1 className="page-title">بلاغاتي</h1>
         <Link href="/dashboard/report" className="portal-btn portal-btn-solid">

@@ -144,7 +144,7 @@ export default async function SearchPage({
   }
 
   return (
-    <>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
       <h1 className="page-title">تصفح العناصر</h1>
 
       <form method="GET" className="portal-search is-static">
@@ -242,6 +242,6 @@ export default async function SearchPage({
           </ul>
         )}
       </article>
-    </>
+    </div>
   );
 }
