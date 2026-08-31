@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
 
 const ATAQ_LAT = 14.5372;
 const ATAQ_LNG = 46.8319;
@@ -59,10 +60,8 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
 
       mapInstanceRef.current = map;
 
-      // طبقة خرائط سريعة وعالية التوافق
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution: "© OpenStreetMap contributors, © CARTO",
-        subdomains: "abcd",
+      L.tileLayer("https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        attribution: "&copy; Google Maps",
         maxZoom: 20,
       }).addTo(map);
 
@@ -85,6 +84,14 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         onChange(lat, lng);
       }
 
+      map.invalidateSize();
+
+      setTimeout(() => {
+        if (!isCancelled && mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 100);
+
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
@@ -106,14 +113,10 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
 
   return (
     <div>
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
       <div
         ref={containerRef}
-        className="map-container"
-        style={{ minHeight: "320px", width: "100%", borderRadius: "var(--radius-md)" }}
+        className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
+        style={{ minHeight: "256px" }}
         aria-label="خريطة تحديد الموقع"
       />
       {lat && lng && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
 
 interface MapViewerProps {
   lat: number;
@@ -50,9 +51,8 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
 
       mapInstanceRef.current = map;
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution: "© OpenStreetMap contributors, © CARTO",
-        subdomains: "abcd",
+      L.tileLayer("https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        attribution: "&copy; Google Maps",
         maxZoom: 20,
       }).addTo(map);
 
@@ -60,6 +60,14 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
         .addTo(map)
         .bindPopup("الموقع التقريبي")
         .openPopup();
+
+      map.invalidateSize();
+
+      setTimeout(() => {
+        if (!isCancelled && mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 100);
 
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {
@@ -80,23 +88,11 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
   }, [lat, lng, zoom]);
 
   return (
-    <div>
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
-      <div
-        ref={containerRef}
-        className="map-container"
-        style={{
-          minHeight: "280px",
-          width: "100%",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--color-border)",
-          zIndex: 0,
-        }}
-        aria-label="موقع الغرض على الخريطة"
-      />
-    </div>
+    <div
+      ref={containerRef}
+      className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
+      style={{ minHeight: "256px" }}
+      aria-label="موقع الغرض على الخريطة"
+    />
   );
 }

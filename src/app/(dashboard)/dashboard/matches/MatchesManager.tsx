@@ -239,17 +239,18 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
       }
 
       if (newStatus === "accepted") {
-        setSelectedTab("accepted");
-        router.replace("/dashboard/matches?tab=accepted", { scroll: false });
         if (data.isDualConfirmed) {
+          setSelectedTab("accepted");
+          router.replace("/dashboard/matches?tab=accepted", { scroll: false });
           setMessage({
             type: "success",
             text: "تم تأكيد وقبول المطابقة بين الطرفين بنجاح! يرجى المتابعة لتقديم ومراجعة إثبات الملكية.",
           });
         } else {
+          setSelectedTab("suggested");
           setMessage({
             type: "success",
-            text: data.message || "✓ قمت بتأكيد المطابقة — بانتظار موافقة الطرف الآخر.",
+            text: data.message || "✓ تم تأكيدك - بانتظار الطرف الآخر.",
           });
         }
       } else if (newStatus === "rejected") {
@@ -431,7 +432,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
             } else if (isBothConfirmed) {
               statusInfo = { label: "✓ تم قبول وتأكيد المطابقة بين الطرفين", bg: "var(--color-success-light)", color: "hsl(142, 60%, 25%)" };
             } else if (isAwaitingOtherParty) {
-              statusInfo = { label: "بانتظار موافقة الطرف الآخر", bg: "hsl(215, 90%, 95%)", color: "hsl(215, 90%, 35%)" };
+              statusInfo = { label: "تم تأكيدك - بانتظار الطرف الآخر", bg: "hsl(215, 90%, 95%)", color: "hsl(215, 90%, 35%)" };
             } else if (isAwaitingMyConfirmation) {
               statusInfo = { label: "بانتظار تأكيدك", bg: "hsl(35, 95%, 93%)", color: "hsl(35, 90%, 35%)" };
             } else {
@@ -842,7 +843,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                         </span>
                       ) : isAwaitingOtherParty ? (
                         <span style={{ color: "hsl(215,90%,35%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
-                          <span>✓</span> قمت بتأكيد المطابقة — بانتظار موافقة الطرف الآخر
+                          <span>✓</span> تم تأكيدك — بانتظار تأكيد الطرف الآخر
                         </span>
                       ) : isAwaitingMyConfirmation ? (
                         <span style={{ color: "hsl(35,90%,35%)", fontWeight: 600 }}>

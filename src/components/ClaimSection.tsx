@@ -279,7 +279,7 @@ export default function ClaimSection({ itemType, itemId, counterpartId, existing
         if (status === "verified") {
           router.push(`/dashboard/recoveries?claimId=${id}&action=schedule`);
         } else {
-          router.push("/dashboard/claims");
+          router.push("/dashboard/claims?tab=outgoing");
         }
         router.refresh();
       }}
