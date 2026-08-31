@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import MediaImage from "@/components/MediaImage";
 import {
   IconSearch,
   IconFilter,
@@ -580,12 +580,11 @@ export default function AdminItemsManager({
                       <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "flex-start", flex: 1, minWidth: "280px" }}>
                         {/* Thumbnail */}
                         {item.images && item.images.length > 0 ? (
-                          <Image
+                          <MediaImage
                             src={item.images[0].startsWith("/") ? item.images[0] : `/${item.images[0]}`}
                             alt={item.title}
                             width={72}
                             height={72}
-                            unoptimized
                             style={{
                               width: "72px",
                               height: "72px",

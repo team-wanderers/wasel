@@ -18,6 +18,7 @@ import {
   IconAlertTriangle,
 } from "@/components/icons";
 import { DashboardLiveSync } from "@/components/DashboardLiveSync";
+import MediaImage from "@/components/MediaImage";
 
 export const dynamic = "force-dynamic";
 
@@ -481,8 +482,11 @@ export default async function DashboardHomePage() {
                           <Link href={item.href}>
                             <span className="portal-thumb">
                               {item.imageSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.imageSrc} alt="" />
+                                <MediaImage
+                                  src={item.imageSrc}
+                                  alt=""
+                                  fallback={<IconFileText size={20} />}
+                                />
                               ) : (
                                 <IconFileText size={20} />
                               )}

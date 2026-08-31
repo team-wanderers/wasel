@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconImage } from "./icons";
+import MediaImage from "./MediaImage";
 
 type ItemCardProps = {
   href: string;
@@ -14,8 +15,7 @@ export default function ItemCard({ href, title, subtitle, meta, imageSrc }: Item
     <Link href={href} className="portal-item">
       <span className="portal-thumb">
         {imageSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageSrc} alt="" />
+          <MediaImage src={imageSrc} alt="" fallback={<IconImage size={22} />} />
         ) : (
           <IconImage size={22} />
         )}
