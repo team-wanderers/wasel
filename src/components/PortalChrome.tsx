@@ -5,10 +5,10 @@ import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { and, count, eq, isNull } from "drizzle-orm";
 import PortalNav from "@/components/PortalNav";
+import BrandLogo from "@/components/BrandLogo";
 import {
   IconBell,
   IconGlobe,
-  IconMapPin,
   IconMenu,
   IconShield,
   IconUser,
@@ -32,9 +32,7 @@ export default async function PortalChrome({ children }: { children: ReactNode }
 
       <aside className="portal-side">
         <Link href="/home" className="portal-brand">
-          <span className="portal-pin" aria-hidden>
-            <IconMapPin size={22} />
-          </span>
+          <BrandLogo size={44} className="portal-logo" />
           <span>
             <strong>واصل</strong>
             <small>خدمة محلية</small>

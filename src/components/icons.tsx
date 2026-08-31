@@ -471,9 +471,11 @@ export function IconWatch(props: IconProps) {
 export function IconHandshake(props: IconProps) {
   return (
     <Icon {...props}>
-      <path d="M8 12 4.8 8.8a2 2 0 0 1 0-2.8L6.2 4.6a2 2 0 0 1 2.8 0L12 7.6" />
-      <path d="M16 12 19.2 8.8a2 2 0 0 0 0-2.8L17.8 4.6a2 2 0 0 0-2.8 0L12 7.6" />
-      <path d="M4 14.5 8 18l3-2 2 2 7-6.5" />
+      <rect x="13" y="2" width="8.2" height="7.4" rx="1.2" />
+      <path d="M13 5.4h8.2" />
+      <path d="M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" />
+      <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 15 6 6" />
     </Icon>
   );
 }
