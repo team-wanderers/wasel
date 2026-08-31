@@ -357,21 +357,8 @@ export default async function ItemDetailPage({
             marginBottom: "var(--space-6)",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "minmax(280px, 0.85fr) minmax(0, 1.5fr)",
-            }}
-          >
-            {/* Gallery */}
-            <div
-              style={{
-                background: "var(--color-bg)",
-                padding: "var(--space-6)",
-                borderLeft: "1px solid var(--color-border)",
-              }}
-            >
+          <div className="item-detail-grid">
+            <div className="item-detail-gallery">
               <div
                 style={{
                   marginBottom: "var(--space-4)",
@@ -475,8 +462,7 @@ export default async function ItemDetailPage({
               )}
             </div>
 
-            {/* Details */}
-            <div style={{ padding: "var(--space-8)" }}>
+            <div className="item-detail-body">
               <div
                 style={{
                   display: "flex",
