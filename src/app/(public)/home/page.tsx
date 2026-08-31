@@ -82,8 +82,7 @@ export default async function HomePage() {
   const userTotal = Number(userCountRow[0]?.count ?? 0);
   const pointTotal = Number(pointCountRow[0]?.count ?? 0);
 
-  const reportHref = session ? "/dashboard/lost/new" : "/register";
-  const foundHref = session ? "/dashboard/found/new" : "/register";
+  const reportHref = session ? "/dashboard/report?type=lost" : "/register";
 
   return (
     <>
@@ -280,6 +279,10 @@ export default async function HomePage() {
           <p>
             واصل منصة لإدارة المفقودات والمعثورات وربطها بأصحابها عبر نقاط أمانة معتمدة.
           </p>
+          <Link href="/about" className="portal-more" style={{ display: "inline-flex", marginTop: 10 }}>
+            اقرأ عن الخدمة
+            <IconChevron size={16} />
+          </Link>
         </section>
         <article className="portal-cta">
           <div>
@@ -292,26 +295,6 @@ export default async function HomePage() {
           </div>
           <IconHandshake size={72} />
         </article>
-      </section>
-
-      <section className="portal-faq" id="faq">
-        <h2>أسئلة شائعة</h2>
-        <details>
-          <summary>كيف أبلّغ عن مفقود؟</summary>
-          <p>أنشئ حساباً ثم أضف بلاغاً بالوصف والصورة والموقع التقريبي.</p>
-        </details>
-        <details>
-          <summary>ماذا أفعل إذا وجدت غرضاً؟</summary>
-          <p>
-            سجّل الموجود من{" "}
-            <Link href={foundHref}>الإبلاغ عن موجود</Link>
-            ، وسنتولى المطابقة مع البلاغات المفتوحة.
-          </p>
-        </details>
-        <details>
-          <summary>أين يتم التسليم؟</summary>
-          <p>يتم التسليم في نقاط الأمانة المعتمدة داخل المدينة بعد التحقق من الملكية.</p>
-        </details>
       </section>
     </>
   );

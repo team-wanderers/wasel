@@ -4,12 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconFileText,
-  IconHeart,
-  IconHelp,
   IconHome,
   IconInfo,
-  IconMapPin,
-  IconMessage,
+  IconBell,
   IconPlus,
   IconSearch,
 } from "@/components/icons";
@@ -20,15 +17,11 @@ export default function PortalNav({ signedIn }: { signedIn: boolean }) {
 
   const items = [
     { href: "/home", label: "الرئيسية", icon: <IconHome size={21} />, match: (p: string) => p === "/home" || p === "/" },
-    { href: authHref("/dashboard/lost/new"), label: "الإبلاغ عن مفقود", icon: <IconPlus size={21} />, match: (p: string) => p.startsWith("/dashboard/lost") },
-    { href: authHref("/dashboard/found/new"), label: "الإبلاغ عن موجود", icon: <IconPlus size={21} />, match: (p: string) => p.startsWith("/dashboard/found") },
+    { href: authHref("/dashboard/report"), label: "بلاغ جديد", icon: <IconPlus size={21} />, match: (p: string) => p.startsWith("/dashboard/report") },
     { href: "/search", label: "تصفح العناصر", icon: <IconSearch size={21} />, match: (p: string) => p.startsWith("/search") || p.startsWith("/items") },
-    { href: authHref("/dashboard"), label: "تقاريري", icon: <IconFileText size={21} />, match: (p: string) => p === "/dashboard" || p.startsWith("/dashboard/matches") || p.startsWith("/dashboard/claims") || p.startsWith("/dashboard/recoveries") },
-    { href: authHref("/dashboard/notifications"), label: "الرسائل", icon: <IconMessage size={21} />, match: (p: string) => p.startsWith("/dashboard/notifications") },
-    { href: authHref("/dashboard/profile"), label: "المفضلة", icon: <IconHeart size={21} />, match: (p: string) => p.startsWith("/dashboard/profile") },
-    { href: "/search", label: "المواقع", icon: <IconMapPin size={21} />, match: () => false },
-    { href: "/home#faq", label: "الأسئلة الشائعة", icon: <IconHelp size={21} />, match: () => false },
-    { href: "/home#about", label: "عن الخدمة", icon: <IconInfo size={21} />, match: () => false },
+    { href: authHref("/dashboard"), label: "تقاريري", icon: <IconFileText size={21} />, match: (p: string) => p === "/dashboard" || p.startsWith("/dashboard/matches") || p.startsWith("/dashboard/claims") || p.startsWith("/dashboard/recoveries") || p.startsWith("/dashboard/items") || p.startsWith("/dashboard/lost") || p.startsWith("/dashboard/found") },
+    { href: authHref("/dashboard/notifications"), label: "الإشعارات", icon: <IconBell size={21} />, match: (p: string) => p.startsWith("/dashboard/notifications") },
+    { href: "/about", label: "عن الخدمة", icon: <IconInfo size={21} />, match: (p: string) => p.startsWith("/about") },
   ];
 
   return (
