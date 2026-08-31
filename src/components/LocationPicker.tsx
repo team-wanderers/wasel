@@ -70,7 +70,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         if (!isCancelled && mapInstanceRef.current) {
           mapInstanceRef.current.resize();
         }
-      }, 100);
+      }, 150);
 
       setTimeout(() => {
         if (!isCancelled && mapInstanceRef.current) {

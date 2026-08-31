@@ -21,6 +21,8 @@ import {
   IconTrendingUp,
   IconLayers,
   IconActivity,
+  IconSettings,
+  IconHistory,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -276,6 +278,14 @@ export default async function AdminPage() {
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
           <Link href="/admin/items" className="btn btn-primary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
             <IconPackage size={14} /> إدارة ومراجعة البلاغات
+          </Link>
+
+          <Link href="/admin/audit-logs" className="btn btn-outline btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <IconHistory size={14} /> سجلات التدقيق
+          </Link>
+
+          <Link href="/admin/settings" className="btn btn-outline btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <IconSettings size={14} /> إعدادات المنصة
           </Link>
 
           <form action="/api/match/run" method="POST">

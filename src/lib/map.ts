@@ -1,9 +1,31 @@
-import type { Map } from "maplibre-gl";
+import type { Map, StyleSpecification } from "maplibre-gl";
 
-export function cartoVoyagerStyle(): string {
-  const key = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
-  const base = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
-  return key ? `${base}?key=${key}` : base;
+export function googleMapsStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      "google-tiles": {
+        type: "raster",
+        tiles: ["https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"],
+        tileSize: 256,
+        attribution: "&copy; Google Maps",
+        maxzoom: 20,
+      },
+    },
+    layers: [
+      {
+        id: "google-tiles-layer",
+        type: "raster",
+        source: "google-tiles",
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  };
+}
+
+export function cartoVoyagerStyle(): StyleSpecification {
+  return googleMapsStyle();
 }
 
 export function createCartoMap(
@@ -21,13 +43,13 @@ export function createCartoMap(
 
   const map = new maplibre.Map({
     container,
-    style: cartoVoyagerStyle(),
+    style: googleMapsStyle(),
     center,
     zoom,
+    maxZoom: 20,
     attributionControl: {
       compact: true,
-      customAttribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+      customAttribution: "&copy; Google Maps",
     },
     dragRotate: false,
     pitchWithRotate: false,

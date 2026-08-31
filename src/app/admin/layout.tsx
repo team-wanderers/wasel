@@ -4,10 +4,12 @@ import { headers } from "next/headers";
 import BrandLogo from "@/components/BrandLogo";
 
 const adminLinks = [
-  { href: "/admin", label: "لوحة الإحصائيات والمؤشرات" },
+  { href: "/admin", label: "لوحة الإحصائيات والمؤشرات", exact: true },
   { href: "/admin/items", label: "إدارة ومراجعة البلاغات" },
   { href: "/admin/users", label: "إدارة المستخدمين والأدوار" },
   { href: "/admin/pickup-points", label: "نقاط الأمانة والاستلام" },
+  { href: "/admin/audit-logs", label: "سجلات التدقيق الإداري" },
+  { href: "/admin/settings", label: "إعدادات المنصة العامة" },
   { href: "/dashboard", label: "لوحة المستخدم الشخصية ←" },
 ];
 
@@ -56,19 +58,25 @@ export default async function AdminLayout({
 
       <div className="dashboard-layout container" style={{ maxWidth: "1200px" }}>
         <aside className="sidebar">
-          {adminLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="sidebar-link"
-              style={{
-                fontWeight: pathname === link.href ? 700 : undefined,
-                background: pathname === link.href ? "var(--color-primary-light)" : undefined,
-              }}
-            >
-              <span>{link.label}</span>
-            </Link>
-          ))}
+          {adminLinks.map((link) => {
+            const isActive = link.exact
+              ? pathname === link.href
+              : pathname === link.href || pathname.startsWith(`${link.href}/`);
+
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="sidebar-link"
+                style={{
+                  fontWeight: isActive ? 700 : undefined,
+                  background: isActive ? "var(--color-primary-light)" : undefined,
+                }}
+              >
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
         </aside>
         <main className="main-content">{children}</main>
       </div>
