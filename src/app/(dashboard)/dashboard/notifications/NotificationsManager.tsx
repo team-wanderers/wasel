@@ -223,7 +223,7 @@ export default function NotificationsManager() {
             filter === "all" ? "btn-primary" : "btn-ghost"
           }`}
         >
-          كافة الإشعارات ({notifications.length})
+          الكل ({notifications.length})
         </button>
 
         <button
@@ -233,7 +233,7 @@ export default function NotificationsManager() {
             filter === "unread" ? "btn-primary" : "btn-ghost"
           }`}
         >
-          غير المقروءة ({unreadCount})
+          الجديدة ({unreadCount})
         </button>
       </div>
 

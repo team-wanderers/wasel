@@ -12,7 +12,7 @@ export default async function EditProfilePage() {
   const user = await requireUser();
 
   return (
-    <div dir="rtl">
+    <div dir="rtl" style={{ maxWidth: "640px", width: "100%" }}>
       <section style={{ marginBottom: "var(--space-8)" }}>
         <span
           style={{
@@ -56,7 +56,7 @@ export default async function EditProfilePage() {
         className="card"
         style={{
           padding: "var(--space-6)",
-          maxWidth: "640px",
+          width: "100%",
         }}
       >
         <EditProfileForm

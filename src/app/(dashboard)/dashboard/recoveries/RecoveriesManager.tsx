@@ -165,7 +165,7 @@ function RecoveriesManagerInner({
   return (
     <div>
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
-        <div>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
           <h1 className="page-title" style={{ margin: 0 }}>عمليات الاستلام والتسليم</h1>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: "var(--space-1)" }}>
             إدارة مواعيد التسليم في نقاط الأمانة المعتمدة وتوثيق الاستلام عبر الرمز السريع (OTP) والتأكيد الثنائي

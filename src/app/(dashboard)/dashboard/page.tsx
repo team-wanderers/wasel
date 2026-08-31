@@ -222,6 +222,7 @@ export default async function DashboardHomePage() {
   return (
     <>
       <DashboardLiveSync />
+      <div style={{ maxWidth: "1000px", width: "100%" }}>
       <h1 className="page-title">لوحة التحكم</h1>
 
       <section className="portal-stats">
@@ -240,15 +241,15 @@ export default async function DashboardHomePage() {
       <div className="portal-actions">
         <Link href="/dashboard/report" className="portal-btn portal-btn-solid">
           <IconPlus size={18} />
-          أضف بلاغ
+          إضافة
         </Link>
         <Link href="/search" className="portal-btn portal-btn-ghost">
           <IconSearch size={18} />
-          استعراض البلاغات
+          البلاغات
         </Link>
         <Link href="/dashboard/matches" className="portal-btn portal-btn-ghost">
           <IconShield size={18} />
-          المطابقات الذكية
+          المطابقات
         </Link>
       </div>
 
@@ -278,11 +279,11 @@ export default async function DashboardHomePage() {
           <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/dashboard/report" className="btn btn-primary">
               <IconPlus size={16} />
-              أضف بلاغ
+              إضافة
             </Link>
             <Link href="/search" className="btn btn-ghost">
               <IconSearch size={16} />
-              البحث في البلاغات
+              بحث
             </Link>
           </div>
         </article>
@@ -301,7 +302,7 @@ export default async function DashboardHomePage() {
                 <p className="portal-empty">
                   <IconCheck size={32} style={{ color: "var(--color-success)" }} />
                   لا توجد مطابقات تنتظر تأكيدك حالياً.
-                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">استعراض المطابقات</Link>
+                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">المطابقات</Link>
                 </p>
               ) : (
                 <>
@@ -345,7 +346,7 @@ export default async function DashboardHomePage() {
                 <p className="portal-empty">
                   <IconFileText size={32} style={{ color: "var(--color-text-muted)" }} />
                   لم تُقدّم أي مطالبة باسترداد بعد.
-                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">استعراض المطابقات</Link>
+                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">المطابقات</Link>
                 </p>
               ) : (
                 <>
@@ -548,6 +549,7 @@ export default async function DashboardHomePage() {
           </div>
         </>
       )}
+      </div>
     </>
   );
 }
