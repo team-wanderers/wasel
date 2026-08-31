@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import { IconCamera } from "@/components/icons";
+import { compressImage } from "@/lib/compress-image";
+import { MAX_INPUT_BYTES, MAX_UPLOAD_BYTES } from "@/lib/image-limits";
 
 export interface UploadedFile {
   id: string;
@@ -48,8 +50,23 @@ export default function ImageUploader({
     const results: UploadedFile[] = [];
 
     for (const file of selected) {
+      if (file.size > MAX_INPUT_BYTES) {
+        setError("حجم الصورة كبير جداً. الحد الأقصى 25 ميغابايت");
+        setUploading(false);
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+
+      const compressed = await compressImage(file);
+      if (compressed.size > MAX_UPLOAD_BYTES) {
+        setError("حجم الصورة يتجاوز الحد الأقصى (5 ميغابايت)");
+        setUploading(false);
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressed);
       if (lostItemId)  formData.append("lostItemId",  lostItemId);
       if (foundItemId) formData.append("foundItemId", foundItemId);
 
@@ -65,7 +82,7 @@ export default function ImageUploader({
       results.push({
         id: data.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`),
         path: data.path,
-        previewUrl: URL.createObjectURL(file),
+        previewUrl: URL.createObjectURL(compressed),
       });
     }
 

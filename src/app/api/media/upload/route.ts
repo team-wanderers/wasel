@@ -5,8 +5,7 @@ import path from "path";
 import { db } from "@/db";
 import { itemMedia } from "@/db/schema";
 import { getSession } from "@/lib/auth";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+import { MAX_UPLOAD_BYTES } from "@/lib/image-limits";
 
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         { error: "حجم الصورة يتجاوز الحد الأقصى (5 ميغابايت)" },
         { status: 413 }
