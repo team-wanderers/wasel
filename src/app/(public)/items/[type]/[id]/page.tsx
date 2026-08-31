@@ -15,6 +15,7 @@ import { getSession } from "@/lib/auth";
 import MapViewer from "@/components/MapViewer";
 import ClaimSection from "@/components/ClaimSection";
 import ShareButton from "@/components/ShareButton";
+import MediaImage from "@/components/MediaImage";
 import {
   IconCamera,
   IconLock,
@@ -399,8 +400,7 @@ export default async function ItemDetailPage({
                             "var(--color-surface)",
                         }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <MediaImage
                           src={src}
                           alt="صورة الغرض"
                           style={{

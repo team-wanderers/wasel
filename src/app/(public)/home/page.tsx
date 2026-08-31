@@ -7,6 +7,7 @@ import { foundItems, pickupPoints, recoveries, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { getFirstMediaMap } from "@/lib/media";
 import { categoryLabels, formatRelativeAr, searchCategories } from "@/lib/labels";
+import MediaImage from "@/components/MediaImage";
 import {
   IconBag,
   IconBookmark,
@@ -246,7 +247,13 @@ export default async function HomePage() {
                     <Link href={`/items/found/${item.id}`}>
                       <span className="portal-thumb">
                         {src ? (
-                          <Image src={src} alt="" width={56} height={56} />
+                          <MediaImage
+                            src={src}
+                            alt=""
+                            width={56}
+                            height={56}
+                            fallback={<IconBag size={22} />}
+                          />
                         ) : (
                           <IconBag size={22} />
                         )}

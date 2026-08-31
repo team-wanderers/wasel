@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import MediaImage from "@/components/MediaImage";
 import { IconAlertTriangle } from "@/components/icons";
 
 export interface MatchItem {
@@ -565,18 +565,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                       >
                         {(() => {
                           const lostImageUrl = getValidImageUrl(m.lost.image);
-                          if (lostImageUrl) {
-                            return (
-                              <Image
-                                src={lostImageUrl}
-                                alt={m.lost.title}
-                                fill
-                                style={{ objectFit: "cover" }}
-                                sizes="(max-width: 768px) 100vw, 300px"
-                              />
-                            );
-                          }
-                          return (
+                          const placeholder = (
                             <div style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
                               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto var(--space-1) auto", display: "block" }}>
                                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -586,6 +575,17 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                               لا توجد صورة مرفقة
                             </div>
                           );
+                          if (lostImageUrl) {
+                            return (
+                              <MediaImage
+                                src={lostImageUrl}
+                                alt={m.lost.title}
+                                fill
+                                fallback={placeholder}
+                              />
+                            );
+                          }
+                          return placeholder;
                         })()}
                       </div>
 
@@ -675,18 +675,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                       >
                         {(() => {
                           const foundImageUrl = getValidImageUrl(m.found.image);
-                          if (foundImageUrl) {
-                            return (
-                              <Image
-                                src={foundImageUrl}
-                                alt={m.found.title}
-                                fill
-                                style={{ objectFit: "cover" }}
-                                sizes="(max-width: 768px) 100vw, 300px"
-                              />
-                            );
-                          }
-                          return (
+                          const placeholder = (
                             <div style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
                               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto var(--space-1) auto", display: "block" }}>
                                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -696,6 +685,17 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                               لا توجد صورة مرفقة
                             </div>
                           );
+                          if (foundImageUrl) {
+                            return (
+                              <MediaImage
+                                src={foundImageUrl}
+                                alt={m.found.title}
+                                fill
+                                fallback={placeholder}
+                              />
+                            );
+                          }
+                          return placeholder;
                         })()}
                       </div>
 
