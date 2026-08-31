@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
 import { randomUUID } from "crypto";
-import path from "path";
 import { db } from "@/db";
 import { itemMedia } from "@/db/schema";
 import { getSession } from "@/lib/auth";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+import { MAX_UPLOAD_BYTES } from "@/lib/image-limits";
+import { saveUpload } from "@/lib/upload-store";
 
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -42,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         { error: "حجم الصورة يتجاوز الحد الأقصى (5 ميغابايت)" },
         { status: 413 }
@@ -52,16 +50,8 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // المسار المباشر داخل مجلد public لخدمته كملف ثابت
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
     const filename = `${Date.now()}-${randomUUID()}${ext}`;
-    const filePath = path.join(uploadDir, filename);
-
-    await writeFile(filePath, buffer);
-
-    const relativePath = `/uploads/${filename}`;
+    const relativePath = await saveUpload(filename, buffer);
     const mimeType = file.type || "image/jpeg";
 
     let mediaId: string = filename;

@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import MediaImage from "@/components/MediaImage";
 import { IconAlertTriangle } from "@/components/icons";
 
 export interface MatchItem {
@@ -299,7 +299,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
   }
 
   return (
-    <div style={{ maxWidth: "1000px" }}>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
         <div>
@@ -344,7 +344,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
           onClick={() => setSelectedTab("suggested")}
           className={`btn btn-sm ${activeTab === "suggested" ? "btn-primary" : "btn-ghost"}`}
         >
-          المقترحة والنشطة ({countSuggested})
+          النشطة ({countSuggested})
         </button>
         <button
           type="button"
@@ -358,14 +358,14 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
           onClick={() => setSelectedTab("closed")}
           className={`btn btn-sm ${activeTab === "closed" ? "btn-primary" : "btn-ghost"}`}
         >
-          المنتهية والمغلقة ({countClosed})
+          المغلقة ({countClosed})
         </button>
         <button
           type="button"
           onClick={() => setSelectedTab("all")}
           className={`btn btn-sm ${activeTab === "all" ? "btn-primary" : "btn-ghost"}`}
         >
-          كافة المطابقات ({matches.length})
+          الكل ({matches.length})
         </button>
       </div>
 
@@ -565,18 +565,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                       >
                         {(() => {
                           const lostImageUrl = getValidImageUrl(m.lost.image);
-                          if (lostImageUrl) {
-                            return (
-                              <Image
-                                src={lostImageUrl}
-                                alt={m.lost.title}
-                                fill
-                                style={{ objectFit: "cover" }}
-                                sizes="(max-width: 768px) 100vw, 300px"
-                              />
-                            );
-                          }
-                          return (
+                          const placeholder = (
                             <div style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
                               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto var(--space-1) auto", display: "block" }}>
                                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -586,6 +575,17 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                               لا توجد صورة مرفقة
                             </div>
                           );
+                          if (lostImageUrl) {
+                            return (
+                              <MediaImage
+                                src={lostImageUrl}
+                                alt={m.lost.title}
+                                fill
+                                fallback={placeholder}
+                              />
+                            );
+                          }
+                          return placeholder;
                         })()}
                       </div>
 
@@ -675,18 +675,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                       >
                         {(() => {
                           const foundImageUrl = getValidImageUrl(m.found.image);
-                          if (foundImageUrl) {
-                            return (
-                              <Image
-                                src={foundImageUrl}
-                                alt={m.found.title}
-                                fill
-                                style={{ objectFit: "cover" }}
-                                sizes="(max-width: 768px) 100vw, 300px"
-                              />
-                            );
-                          }
-                          return (
+                          const placeholder = (
                             <div style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
                               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto var(--space-1) auto", display: "block" }}>
                                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -696,6 +685,17 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                               لا توجد صورة مرفقة
                             </div>
                           );
+                          if (foundImageUrl) {
+                            return (
+                              <MediaImage
+                                src={foundImageUrl}
+                                alt={m.found.title}
+                                fill
+                                fallback={placeholder}
+                              />
+                            );
+                          }
+                          return placeholder;
                         })()}
                       </div>
 
@@ -956,7 +956,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                             className="btn btn-ghost btn-sm"
                             style={{ color: "var(--color-text-muted)", fontSize: "11px" }}
                           >
-                            تراجع وإلغاء القبول
+                            تراجع
                           </button>
                         </>
                       ) : isAwaitingOtherParty ? (
@@ -969,7 +969,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                             className="btn btn-ghost btn-sm"
                             style={{ color: "var(--color-text-muted)", fontSize: "12px" }}
                           >
-                            {isLoading ? "جارٍ الحفظ..." : "تراجع عن التأكيد"}
+                            {isLoading ? "جارٍ الحفظ..." : "تراجع"}
                           </button>
                           <button
                             type="button"
@@ -978,7 +978,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                             className="btn btn-outline btn-sm"
                             style={{ color: "var(--color-text-muted)", borderColor: "var(--color-border)" }}
                           >
-                            {isLoading ? "جارٍ الحفظ..." : "استبعاد المطابقة"}
+                            {isLoading ? "جارٍ الحفظ..." : "استبعاد"}
                           </button>
                         </>
                       ) : (isAwaitingMyConfirmation || isSuggested) ? (
@@ -991,7 +991,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                             className="btn btn-outline btn-sm"
                             style={{ color: "var(--color-text-muted)", borderColor: "var(--color-border)" }}
                           >
-                            {isLoading ? "جارٍ الحفظ..." : "ليس هذا الغرض / استبعاد"}
+                            {isLoading ? "جارٍ الحفظ..." : "استبعاد"}
                           </button>
 
                           <button
@@ -1000,7 +1000,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
                             disabled={isLoading}
                             className="btn btn-primary btn-sm"
                           >
-                            {isLoading ? "جارٍ الحفظ..." : "تأكيد وقبول المطابقة ✓"}
+                            {isLoading ? "جارٍ الحفظ..." : "تأكيد"}
                           </button>
                         </>
                       ) : null}

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Map, Marker } from "maplibre-gl";
 import { createCartoMap } from "@/lib/map";
+import { useMapKey } from "@/context/MapKeyContext";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const ATAQ_LAT = 14.5372;
@@ -16,6 +17,7 @@ interface LocationPickerProps {
 }
 
 export default function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
+  const apiKey = useMapKey();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -38,7 +40,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
       const initialLat = lat ?? ATAQ_LAT;
       const initialLng = lng ?? ATAQ_LNG;
 
-      const map = createCartoMap(maplibre, containerRef.current, [initialLng, initialLat], DEFAULT_ZOOM);
+      const map = createCartoMap(maplibre, containerRef.current, [initialLng, initialLat], DEFAULT_ZOOM, apiKey);
       mapInstanceRef.current = map;
 
       const marker = new maplibre.Marker({ draggable: true })
@@ -95,7 +97,8 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     <div>
       <div
         ref={containerRef}
-        className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
+        dir="ltr"
+        className="relative z-0 w-full h-64 rounded-xl border border-[var(--color-border)] overflow-hidden"
         style={{ minHeight: "256px" }}
         aria-label="خريطة تحديد الموقع"
       />

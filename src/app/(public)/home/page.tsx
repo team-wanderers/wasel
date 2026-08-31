@@ -7,6 +7,7 @@ import { foundItems, pickupPoints, recoveries, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { getFirstMediaMap } from "@/lib/media";
 import { categoryLabels, formatRelativeAr, searchCategories } from "@/lib/labels";
+import MediaImage from "@/components/MediaImage";
 import {
   IconBag,
   IconBookmark,
@@ -82,8 +83,7 @@ export default async function HomePage() {
   const userTotal = Number(userCountRow[0]?.count ?? 0);
   const pointTotal = Number(pointCountRow[0]?.count ?? 0);
 
-  const reportHref = session ? "/dashboard/lost/new" : "/register";
-  const foundHref = session ? "/dashboard/found/new" : "/register";
+  const reportHref = session ? "/dashboard/report?type=lost" : "/register";
 
   return (
     <>
@@ -247,7 +247,13 @@ export default async function HomePage() {
                     <Link href={`/items/found/${item.id}`}>
                       <span className="portal-thumb">
                         {src ? (
-                          <Image src={src} alt="" width={56} height={56} />
+                          <MediaImage
+                            src={src}
+                            alt=""
+                            width={56}
+                            height={56}
+                            fallback={<IconBag size={22} />}
+                          />
                         ) : (
                           <IconBag size={22} />
                         )}
@@ -280,6 +286,10 @@ export default async function HomePage() {
           <p>
             واصل منصة لإدارة المفقودات والمعثورات وربطها بأصحابها عبر نقاط أمانة معتمدة.
           </p>
+          <Link href="/about" className="portal-more" style={{ display: "inline-flex", marginTop: 10 }}>
+            اقرأ عن الخدمة
+            <IconChevron size={16} />
+          </Link>
         </section>
         <article className="portal-cta">
           <div>
@@ -292,26 +302,6 @@ export default async function HomePage() {
           </div>
           <IconHandshake size={72} />
         </article>
-      </section>
-
-      <section className="portal-faq" id="faq">
-        <h2>أسئلة شائعة</h2>
-        <details>
-          <summary>كيف أبلّغ عن مفقود؟</summary>
-          <p>أنشئ حساباً ثم أضف بلاغاً بالوصف والصورة والموقع التقريبي.</p>
-        </details>
-        <details>
-          <summary>ماذا أفعل إذا وجدت غرضاً؟</summary>
-          <p>
-            سجّل الموجود من{" "}
-            <Link href={foundHref}>الإبلاغ عن موجود</Link>
-            ، وسنتولى المطابقة مع البلاغات المفتوحة.
-          </p>
-        </details>
-        <details>
-          <summary>أين يتم التسليم؟</summary>
-          <p>يتم التسليم في نقاط الأمانة المعتمدة داخل المدينة بعد التحقق من الملكية.</p>
-        </details>
       </section>
     </>
   );

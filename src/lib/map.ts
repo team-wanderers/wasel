@@ -1,5 +1,8 @@
 import type { Map, StyleSpecification } from "maplibre-gl";
 
+const MAPLIBRE_WORKER =
+  "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl-worker.mjs";
+
 export function googleMapsStyle(): StyleSpecification {
   return {
     version: 8,
@@ -24,7 +27,7 @@ export function googleMapsStyle(): StyleSpecification {
   };
 }
 
-export function cartoVoyagerStyle(): StyleSpecification {
+export function cartoVoyagerStyle(_key = ""): StyleSpecification {
   return googleMapsStyle();
 }
 
@@ -33,7 +36,14 @@ export function createCartoMap(
   container: HTMLElement,
   center: [number, number],
   zoom: number,
+  _key = "",
 ): Map {
+  container.dir = "ltr";
+
+  if (maplibre.getWorkerUrl() !== MAPLIBRE_WORKER) {
+    maplibre.setWorkerUrl(MAPLIBRE_WORKER);
+  }
+
   if (maplibre.getRTLTextPluginStatus() === "unavailable") {
     void maplibre.setRTLTextPlugin(
       "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js",

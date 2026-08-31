@@ -82,7 +82,7 @@ export default async function ProfilePage() {
 
   const stats = [
     {
-      href: "/dashboard/lost",
+      href: "/dashboard/items?type=lost",
       icon: <IconClipboard size={22} />,
       value: lostCount,
       label: "بلاغات المفقودات",
@@ -91,7 +91,7 @@ export default async function ProfilePage() {
       iconBackground: "hsl(0, 80%, 92%)",
     },
     {
-      href: "/dashboard/found",
+      href: "/dashboard/items?type=found",
       icon: <IconPackage size={22} />,
       value: foundCount,
       label: "بلاغات الموجودات",
@@ -129,7 +129,7 @@ export default async function ProfilePage() {
   ];
 
   return (
-    <div dir="rtl">
+    <div dir="rtl" style={{ maxWidth: "1000px", width: "100%" }}>
       <section style={{ marginBottom: "var(--space-8)" }}>
         <span
           style={{

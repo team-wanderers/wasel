@@ -6,6 +6,7 @@ import {
   siteTitle,
   siteUrl,
 } from "@/lib/site";
+import { MapKeyProvider } from "@/context/MapKeyContext";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +85,9 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {children}
+        <MapKeyProvider apiKey={process.env.NEXT_PUBLIC_CARTO_API_KEY ?? ""}>
+          {children}
+        </MapKeyProvider>
       </body>
     </html>
   );

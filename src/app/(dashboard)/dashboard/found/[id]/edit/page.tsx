@@ -361,7 +361,7 @@ export default function EditFoundItemPage() {
         return;
       }
 
-      router.push("/dashboard/found");
+      router.push("/dashboard/items?type=found");
       router.refresh();
     } catch {
       setError("تعذر حذف البلاغ. حاول مرة أخرى.");
@@ -905,7 +905,7 @@ export default function EditFoundItemPage() {
               type="button"
               className="btn btn-ghost"
               onClick={() => {
-                router.push("/dashboard/found");
+                router.push("/dashboard/items?type=found");
                 router.refresh();
               }}
               style={{ width: "100%" }}

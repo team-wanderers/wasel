@@ -15,6 +15,7 @@ import { getSession } from "@/lib/auth";
 import MapViewer from "@/components/MapViewer";
 import ClaimSection from "@/components/ClaimSection";
 import ShareButton from "@/components/ShareButton";
+import MediaImage from "@/components/MediaImage";
 import {
   IconCamera,
   IconLock,
@@ -274,7 +275,7 @@ export default async function ItemDetailPage({
       : "هل عثرت على هذا الغرض؟";
 
   return (
-    <main dir="rtl">
+    <main dir="rtl" style={{ maxWidth: "1000px", width: "100%" }}>
       <div>
         {/* Breadcrumb */}
         <nav
@@ -357,21 +358,8 @@ export default async function ItemDetailPage({
             marginBottom: "var(--space-6)",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "minmax(280px, 0.85fr) minmax(0, 1.5fr)",
-            }}
-          >
-            {/* Gallery */}
-            <div
-              style={{
-                background: "var(--color-bg)",
-                padding: "var(--space-6)",
-                borderLeft: "1px solid var(--color-border)",
-              }}
-            >
+          <div className="item-detail-grid">
+            <div className="item-detail-gallery">
               <div
                 style={{
                   marginBottom: "var(--space-4)",
@@ -412,8 +400,7 @@ export default async function ItemDetailPage({
                             "var(--color-surface)",
                         }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <MediaImage
                           src={src}
                           alt="صورة الغرض"
                           style={{
@@ -475,8 +462,7 @@ export default async function ItemDetailPage({
               )}
             </div>
 
-            {/* Details */}
-            <div style={{ padding: "var(--space-8)" }}>
+            <div className="item-detail-body">
               <div
                 style={{
                   display: "flex",

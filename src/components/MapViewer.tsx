@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Map } from "maplibre-gl";
 import { createCartoMap } from "@/lib/map";
+import { useMapKey } from "@/context/MapKeyContext";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface MapViewerProps {
@@ -12,6 +13,7 @@ interface MapViewerProps {
 }
 
 export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
+  const apiKey = useMapKey();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
 
@@ -30,7 +32,7 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
         mapInstanceRef.current = null;
       }
 
-      const map = createCartoMap(maplibre, containerRef.current, [lng, lat], zoom);
+      const map = createCartoMap(maplibre, containerRef.current, [lng, lat], zoom, apiKey);
       mapInstanceRef.current = map;
 
       new maplibre.Marker()
@@ -63,12 +65,13 @@ export default function MapViewer({ lat, lng, zoom = 15 }: MapViewerProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [lat, lng, zoom]);
+  }, [lat, lng, zoom, apiKey]);
 
   return (
     <div
       ref={containerRef}
-      className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
+      dir="ltr"
+      className="relative z-0 w-full h-64 rounded-xl border border-[var(--color-border)] overflow-hidden"
       style={{ minHeight: "256px" }}
       aria-label="موقع الغرض على الخريطة"
     />

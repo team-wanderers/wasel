@@ -8,12 +8,12 @@ import ItemCard from "@/components/ItemCard";
 import { IconSearch } from "@/components/icons";
 
 const statusOptions = [
+  { value: "all", label: "الكل" },
   { value: "open", label: "مفتوح" },
   { value: "matched", label: "مطابَق" },
   { value: "claimed", label: "مطالَب" },
   { value: "recovered", label: "مُسترجَع" },
   { value: "closed", label: "مغلق" },
-  { value: "all", label: "الكل" },
 ];
 
 type ItemCategory = "documents" | "electronics" | "keys" | "bags" | "jewelry" | "pets" | "other";
@@ -144,7 +144,7 @@ export default async function SearchPage({
   }
 
   return (
-    <>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
       <h1 className="page-title">تصفح العناصر</h1>
 
       <form method="GET" className="portal-search is-static">
@@ -176,28 +176,35 @@ export default async function SearchPage({
       </form>
 
       <div className="portal-filters">
-        {[
-          { value: "", label: "الكل" },
-          { value: "lost", label: "مفقودات" },
-          { value: "found", label: "موجودات" },
-        ].map((t) => (
-          <Link
-            key={t.value || "type-all"}
-            href={buildUrl({ type: t.value })}
-            className={`portal-filter${(type ?? "") === t.value ? " is-active" : ""}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-        {statusOptions.map((s) => (
-          <Link
-            key={s.value}
-            href={buildUrl({ status: s.value })}
-            className={`portal-filter${effectiveStatus === s.value ? " is-active" : ""}`}
-          >
-            {s.label}
-          </Link>
-        ))}
+        <div className="portal-filters-group">
+          <span className="portal-filters-label">النوع</span>
+          {[
+            { value: "", label: "الكل" },
+            { value: "lost", label: "مفقودات" },
+            { value: "found", label: "موجودات" },
+          ].map((t) => (
+            <Link
+              key={t.value || "type-all"}
+              href={buildUrl({ type: t.value })}
+              className={`portal-filter${(type ?? "") === t.value ? " is-active" : ""}`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+        <span className="portal-filters-sep" aria-hidden="true" />
+        <div className="portal-filters-group">
+          <span className="portal-filters-label">الحالة</span>
+          {statusOptions.map((s) => (
+            <Link
+              key={s.value}
+              href={buildUrl({ status: s.value })}
+              className={`portal-filter${effectiveStatus === s.value ? " is-active" : ""}`}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <article className="portal-card">
@@ -207,8 +214,8 @@ export default async function SearchPage({
               لا توجد بلاغات مطابقة
               {q ? ` لـ "${q}"` : ""}
             </p>
-            <Link href="/dashboard/lost/new" className="portal-btn portal-btn-solid">
-              أضف بلاغ مفقود
+            <Link href="/dashboard/report" className="portal-btn portal-btn-solid">
+              أضف بلاغ
             </Link>
           </div>
         ) : (
@@ -235,6 +242,6 @@ export default async function SearchPage({
           </ul>
         )}
       </article>
-    </>
+    </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   IconAlertTriangle,
 } from "@/components/icons";
 import { DashboardLiveSync } from "@/components/DashboardLiveSync";
+import MediaImage from "@/components/MediaImage";
 
 export const dynamic = "force-dynamic";
 
@@ -189,7 +190,7 @@ export default async function DashboardHomePage() {
       label: "مفقوداتي المفتوحة",
       hint: "بلاغات نشطة",
       value: lostCount,
-      href: "/dashboard/lost",
+      href: "/dashboard/items?type=lost",
       icon: <IconBriefcase size={22} />,
       tone: "is-blue",
     },
@@ -197,7 +198,7 @@ export default async function DashboardHomePage() {
       label: "معثوراتي المفتوحة",
       hint: "أبلغت عن العثور عليها",
       value: foundCount,
-      href: "/dashboard/found",
+      href: "/dashboard/items?type=found",
       icon: <IconBookmark size={22} />,
       tone: "is-green",
     },
@@ -222,6 +223,7 @@ export default async function DashboardHomePage() {
   return (
     <>
       <DashboardLiveSync />
+      <div style={{ maxWidth: "1000px", width: "100%" }}>
       <h1 className="page-title">لوحة التحكم</h1>
 
       <section className="portal-stats">
@@ -238,21 +240,17 @@ export default async function DashboardHomePage() {
       </section>
 
       <div className="portal-actions">
-        <Link href="/dashboard/lost/new" className="portal-btn portal-btn-solid">
+        <Link href="/dashboard/report" className="portal-btn portal-btn-solid">
           <IconPlus size={18} />
-          أبلغ عن مفقود
-        </Link>
-        <Link href="/dashboard/found/new" className="portal-btn portal-btn-ghost">
-          <IconPlus size={18} />
-          أبلغ عن موجود
+          إضافة
         </Link>
         <Link href="/search" className="portal-btn portal-btn-ghost">
           <IconSearch size={18} />
-          استعراض البلاغات
+          البلاغات
         </Link>
         <Link href="/dashboard/matches" className="portal-btn portal-btn-ghost">
           <IconShield size={18} />
-          المطابقات الذكية
+          المطابقات
         </Link>
       </div>
 
@@ -277,20 +275,16 @@ export default async function DashboardHomePage() {
             مرحباً بك في واصل
           </h2>
           <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", maxWidth: 380, margin: "0 auto var(--space-6)" }}>
-            لم تُضف أي بلاغات بعد. ابدأ بإضافة بلاغ مفقود أو أبلغ عن غرض عثرت عليه لتتواصل مع أصحابه.
+            لم تُضف أي بلاغات بعد. ابدأ بإضافة بلاغ مفقود أو موجود لتتواصل مع أصحابه.
           </p>
           <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/dashboard/lost/new" className="btn btn-primary">
+            <Link href="/dashboard/report" className="btn btn-primary">
               <IconPlus size={16} />
-              إبلاغ عن مفقود
-            </Link>
-            <Link href="/dashboard/found/new" className="btn btn-ghost">
-              <IconPlus size={16} />
-              إبلاغ عن موجود
+              إضافة
             </Link>
             <Link href="/search" className="btn btn-ghost">
               <IconSearch size={16} />
-              البحث في البلاغات
+              بحث
             </Link>
           </div>
         </article>
@@ -309,7 +303,7 @@ export default async function DashboardHomePage() {
                 <p className="portal-empty">
                   <IconCheck size={32} style={{ color: "var(--color-success)" }} />
                   لا توجد مطابقات تنتظر تأكيدك حالياً.
-                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">استعراض المطابقات</Link>
+                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">المطابقات</Link>
                 </p>
               ) : (
                 <>
@@ -353,7 +347,7 @@ export default async function DashboardHomePage() {
                 <p className="portal-empty">
                   <IconFileText size={32} style={{ color: "var(--color-text-muted)" }} />
                   لم تُقدّم أي مطالبة باسترداد بعد.
-                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">استعراض المطابقات</Link>
+                  <Link href="/dashboard/matches" className="btn btn-ghost btn-sm">المطابقات</Link>
                 </p>
               ) : (
                 <>
@@ -447,15 +441,15 @@ export default async function DashboardHomePage() {
             <article className="portal-card">
               <div className="portal-card-head">
                 <h2>آخر بلاغاتي</h2>
-                <Link href="/dashboard/lost">إدارة البلاغات</Link>
+                <Link href="/dashboard/items">إدارة البلاغات</Link>
               </div>
               {lostRows.length === 0 && foundRows.length === 0 ? (
                 <p className="portal-empty">
                   <IconBriefcase size={32} style={{ color: "var(--color-text-muted)" }} />
                   لم تُضف أي بلاغات بعد.
-                  <Link href="/dashboard/lost/new" className="btn btn-primary btn-sm">
+                  <Link href="/dashboard/report" className="btn btn-primary btn-sm">
                     <IconPlus size={14} />
-                    إبلاغ عن مفقود
+                    أضف بلاغ
                   </Link>
                 </p>
               ) : (
@@ -464,7 +458,7 @@ export default async function DashboardHomePage() {
                     {[
                       ...lostRows.map((r) => ({
                         key: `lost-${r.id}`,
-                        href: "/dashboard/lost",
+                        href: "/dashboard/items?type=lost",
                         title: r.title,
                         meta: formatRelativeAr(r.createdAt),
                         badge: { label: "مفقود", bg: "var(--color-primary-light)", color: "var(--color-primary)" },
@@ -473,7 +467,7 @@ export default async function DashboardHomePage() {
                       })),
                       ...foundRows.map((r) => ({
                         key: `found-${r.id}`,
-                        href: "/dashboard/found",
+                        href: "/dashboard/items?type=found",
                         title: r.title,
                         meta: formatRelativeAr(r.createdAt),
                         badge: { label: "موجود", bg: "#d1fae5", color: "#059669" },
@@ -488,8 +482,11 @@ export default async function DashboardHomePage() {
                           <Link href={item.href}>
                             <span className="portal-thumb">
                               {item.imageSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.imageSrc} alt="" />
+                                <MediaImage
+                                  src={item.imageSrc}
+                                  alt=""
+                                  fallback={<IconFileText size={20} />}
+                                />
                               ) : (
                                 <IconFileText size={20} />
                               )}
@@ -505,7 +502,7 @@ export default async function DashboardHomePage() {
                         </li>
                       ))}
                   </ul>
-                  <Link href="/dashboard/lost" className="portal-more">
+                  <Link href="/dashboard/items" className="portal-more">
                     إدارة بلاغاتي
                     <IconChevron size={16} />
                   </Link>
@@ -556,6 +553,7 @@ export default async function DashboardHomePage() {
           </div>
         </>
       )}
+      </div>
     </>
   );
 }
