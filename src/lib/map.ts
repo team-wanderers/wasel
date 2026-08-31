@@ -27,7 +27,8 @@ export function googleMapsStyle(): StyleSpecification {
   };
 }
 
-export function cartoVoyagerStyle(_key?: string): StyleSpecification {
+export function cartoVoyagerStyle(key?: string): StyleSpecification {
+  void key;
   return googleMapsStyle();
 }
 
@@ -36,8 +37,9 @@ export function createCartoMap(
   container: HTMLElement,
   center: [number, number],
   zoom: number,
-  _key?: string,
+  key?: string,
 ): Map {
+  void key;
   container.dir = "ltr";
 
   if (maplibre.getWorkerUrl() !== MAPLIBRE_WORKER) {
