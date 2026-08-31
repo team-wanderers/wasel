@@ -51,5 +51,18 @@ export function createCartoMap(
   });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-left");
+  map.on("style.load", () => {
+    for (const layer of map.getStyle().layers ?? []) {
+      if (layer.type !== "symbol") continue;
+      const field = map.getLayoutProperty(layer.id, "text-field");
+      if (!field || field === "{housenumber}") continue;
+      map.setLayoutProperty(layer.id, "text-field", [
+        "coalesce",
+        ["get", "name:ar"],
+        ["get", "name"],
+        ["get", "name_en"],
+      ]);
+    }
+  });
   return map;
 }
