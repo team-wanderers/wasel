@@ -6,6 +6,7 @@ import { notifications } from "@/db/schema";
 import { and, count, eq, isNull } from "drizzle-orm";
 import PortalNav from "@/components/PortalNav";
 import BrandLogo from "@/components/BrandLogo";
+import UserMenu from "@/components/UserMenu";
 import {
   IconBell,
   IconGlobe,
@@ -70,17 +71,7 @@ export default async function PortalChrome({ children }: { children: ReactNode }
           </div>
           <div className="portal-top-end">
             {session ? (
-              <>
-                <Link href="/dashboard" className="portal-btn portal-btn-solid">
-                  <IconUser size={21} />
-                  لوحتي
-                </Link>
-                <form action="/api/auth/logout" method="POST">
-                  <button type="submit" className="portal-btn portal-btn-ghost">
-                    خروج
-                  </button>
-                </form>
-              </>
+              <UserMenu name={session.name} email={session.email} image={session.image} />
             ) : (
               <>
                 <Link href="/login" className="portal-btn portal-btn-solid">
