@@ -1,15 +1,35 @@
-import type { Map } from "maplibre-gl";
+import type { Map, StyleSpecification } from "maplibre-gl";
 
 const MAPLIBRE_WORKER =
   "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl-worker.mjs";
 
-function withCartoKey(url: string, key: string): string {
-  if (!key || !url.includes("cartocdn.com") || /[?&]key=/.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`;
+export function googleMapsStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      "google-tiles": {
+        type: "raster",
+        tiles: ["https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"],
+        tileSize: 256,
+        attribution: "&copy; Google Maps",
+        maxzoom: 20,
+      },
+    },
+    layers: [
+      {
+        id: "google-tiles-layer",
+        type: "raster",
+        source: "google-tiles",
+        minzoom: 0,
+        maxzoom: 20,
+      },
+    ],
+  };
 }
 
-export function cartoVoyagerStyle(key: string): string {
-  return withCartoKey("https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json", key);
+export function cartoVoyagerStyle(key?: string): StyleSpecification {
+  void key;
+  return googleMapsStyle();
 }
 
 export function createCartoMap(
@@ -17,8 +37,9 @@ export function createCartoMap(
   container: HTMLElement,
   center: [number, number],
   zoom: number,
-  key = "",
+  key?: string,
 ): Map {
+  void key;
   container.dir = "ltr";
 
   if (maplibre.getWorkerUrl() !== MAPLIBRE_WORKER) {
@@ -34,35 +55,19 @@ export function createCartoMap(
 
   const map = new maplibre.Map({
     container,
-    style: cartoVoyagerStyle(key),
+    style: googleMapsStyle(),
     center,
     zoom,
+    maxZoom: 20,
     attributionControl: {
       compact: true,
-      customAttribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+      customAttribution: "&copy; Google Maps",
     },
     dragRotate: false,
     pitchWithRotate: false,
     rollEnabled: false,
-    transformRequest(url) {
-      return { url: withCartoKey(url, key) };
-    },
   });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-left");
-  map.on("style.load", () => {
-    for (const layer of map.getStyle().layers ?? []) {
-      if (layer.type !== "symbol") continue;
-      const field = map.getLayoutProperty(layer.id, "text-field");
-      if (!field || field === "{housenumber}") continue;
-      map.setLayoutProperty(layer.id, "text-field", [
-        "coalesce",
-        ["get", "name:ar"],
-        ["get", "name"],
-        ["get", "name_en"],
-      ]);
-    }
-  });
   return map;
 }

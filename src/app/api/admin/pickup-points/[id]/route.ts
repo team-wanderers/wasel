@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { pickupPoints } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 const updateSchema = z.object({
   name: z.string().min(2, "اسم نقطة الاستلام مطلوب").optional(),
@@ -71,6 +73,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .where(eq(pickupPoints.id, id))
       .returning();
 
+    await logAudit({
+      actorId: session.id,
+      action: "pickup_point.update",
+      entityType: "pickup_point",
+      entityId: updated.id,
+      meta: {
+        name: updated.name,
+        address: updated.address,
+        phone: updated.phone,
+        isActive: updated.isActive,
+        changes: parsed.data,
+      },
+    });
+
+    revalidatePath("/admin/pickup-points");
+    revalidatePath("/admin/audit-logs");
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[ADMIN_PICKUP_POINTS_PATCH_ERROR]", error);
@@ -96,6 +115,21 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (!updated) {
       return NextResponse.json({ error: "نقطة الاستلام غير موجودة" }, { status: 404 });
     }
+
+    await logAudit({
+      actorId: session.id,
+      action: "pickup_point.delete",
+      entityType: "pickup_point",
+      entityId: updated.id,
+      meta: {
+        name: updated.name,
+        address: updated.address,
+        action: "deactivated",
+      },
+    });
+
+    revalidatePath("/admin/pickup-points");
+    revalidatePath("/admin/audit-logs");
 
     return NextResponse.json({ success: true, message: "تم تعطيل نقطة الاستلام بنجاح" });
   } catch (error) {

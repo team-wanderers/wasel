@@ -15,21 +15,23 @@
  */
 
 import { db } from "@/db";
-import { lostItems, foundItems, matches, auditLogs } from "@/db/schema";
+import { lostItems, foundItems, matches } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notify } from "./notify";
 import { normalizeArabic } from "./normalize";
+import { getPlatformSettings, MatchingSettings } from "./settings";
+import { logAudit } from "./audit";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const TITLE_WEIGHT     = 0.40;
-const DESC_WEIGHT      = 0.15;
-const CATEGORY_WEIGHT  = 0.25;
-const GEO_WEIGHT       = 0.20;
+const DEFAULT_TITLE_WEIGHT    = 0.40;
+const DEFAULT_DESC_WEIGHT     = 0.15;
+const DEFAULT_CATEGORY_WEIGHT = 0.25;
+const DEFAULT_GEO_WEIGHT      = 0.20;
 
-const MAX_RADIUS_KM    = 50;     // نصف القطر الأقصى للتأثير الجغرافي
-const MATCH_THRESHOLD  = 0.60;  // عتبة إنشاء Match حقيقي + تنبيه
-const POTENTIAL_FLOOR  = 0.35;  // أدنى درجة للتسجيل بدون تنبيه
+const DEFAULT_MAX_RADIUS_KM   = 50;
+const DEFAULT_MATCH_THRESHOLD = 0.60;
+const DEFAULT_POTENTIAL_FLOOR = 0.35;
 
 // ── Text Tokenization ──────────────────────────────────────────────────────
 
@@ -63,19 +65,20 @@ function tokenOverlap(a: string, b: string): number {
 
 // ── Haversine Distance ─────────────────────────────────────────────────────
 
-const EARTH_RADIUS_KM = 6371;
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
 
-function haversineKm(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number,
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
+  const dLon = toRad(lon2 - lon1);
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 // ── Score Computation ──────────────────────────────────────────────────────
@@ -83,7 +86,13 @@ function haversineKm(
 type LostRow  = { id: string; title: string; description: string; category: string; lat: number | null; lng: number | null; userId: string };
 type FoundRow = { id: string; title: string; description: string; category: string; lat: number | null; lng: number | null; userId: string };
 
-export function computeScore(lost: LostRow, found: FoundRow): number {
+export function computeScore(lost: LostRow, found: FoundRow, customSettings?: MatchingSettings): number {
+  const titleWeight = customSettings?.titleWeight ?? DEFAULT_TITLE_WEIGHT;
+  const descWeight = customSettings?.descWeight ?? DEFAULT_DESC_WEIGHT;
+  const catWeight = customSettings?.categoryWeight ?? DEFAULT_CATEGORY_WEIGHT;
+  const geoWeight = customSettings?.geoWeight ?? DEFAULT_GEO_WEIGHT;
+  const maxRadiusKm = customSettings?.maxRadiusKm ?? DEFAULT_MAX_RADIUS_KM;
+
   // 1. تطابق التصنيف
   const catScore = lost.category === found.category ? 1.0 : 0.0;
 
@@ -100,17 +109,17 @@ export function computeScore(lost: LostRow, found: FoundRow): number {
     found.lat != null && found.lng != null
   ) {
     const distKm = haversineKm(lost.lat, lost.lng, found.lat, found.lng);
-    geoScore = Math.max(0, 1 - distKm / MAX_RADIUS_KM);
+    geoScore = Math.max(0, 1 - distKm / maxRadiusKm);
   } else if (catScore === 1.0 && (titleScore > 0 || descScore > 0)) {
     // درجة جغرافية محايدة في حال عدم وجود إحداثيات ولكن مع تطابق التصنيف والنص
     geoScore = 0.5;
   }
 
   let rawScore =
-    titleScore * TITLE_WEIGHT +
-    descScore  * DESC_WEIGHT  +
-    catScore   * CATEGORY_WEIGHT +
-    geoScore   * GEO_WEIGHT;
+    titleScore * titleWeight +
+    descScore  * descWeight  +
+    catScore   * catWeight +
+    geoScore   * geoWeight;
 
   // تخفيض الوزن واشتراط وجود تشابه نصي لمنع رفع النسبة فوق 35% بمجرد اشتراك المدينة والتصنيف
   if (titleScore === 0) {
@@ -144,6 +153,10 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
   let updated  = 0;
   let skipped  = 0;
 
+  const platformSettings = await getPlatformSettings();
+  const matchThreshold = platformSettings.matching.matchThreshold ?? DEFAULT_MATCH_THRESHOLD;
+  const potentialFloor = platformSettings.matching.potentialFloor ?? DEFAULT_POTENTIAL_FLOOR;
+
   // 1. جلب البلاغات المفتوحة
   const openLost = await db
     .select({
@@ -175,9 +188,9 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
       // لا تُطابق بلاغات المستخدم نفسه مع نفسه
       if (lost.userId === found.userId) { skipped++; continue; }
 
-      const score = computeScore(lost, found);
+      const score = computeScore(lost, found, platformSettings.matching);
 
-      if (score < POTENTIAL_FLOOR) { skipped++; continue; }
+      if (score < potentialFloor) { skipped++; continue; }
 
       // 3. INSERT / UPDATE في matches
       const existing = await db.query.matches.findFirst({
@@ -195,7 +208,7 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
         inserted++;
 
         // تنبيه فقط للمطابقات فوق العتبة
-        if (score >= MATCH_THRESHOLD) {
+        if (score >= matchThreshold) {
           await Promise.all([
             notify({
               userId: lost.userId,
@@ -228,7 +241,7 @@ export async function runMatchingEngine(): Promise<MatchingResult> {
   const durationMs = Date.now() - start;
 
   // 4. سجِّل في audit_logs
-  await db.insert(auditLogs).values({
+  await logAudit({
     action: "matching_run",
     entityType: "system",
     meta: { inserted, updated, skipped, durationMs, pairs: openLost.length * openFound.length },

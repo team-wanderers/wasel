@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { pickupPoints } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 const createSchema = z.object({
   name: z.string().min(2, "اسم نقطة الاستلام مطلوب (حرفان على الأقل)"),
@@ -68,6 +70,22 @@ export async function POST(req: NextRequest) {
         isActive: isActive ?? true,
       })
       .returning();
+
+    await logAudit({
+      actorId: session.id,
+      action: "pickup_point.create",
+      entityType: "pickup_point",
+      entityId: point.id,
+      meta: {
+        name: point.name,
+        address: point.address,
+        phone: point.phone,
+        isActive: point.isActive,
+      },
+    });
+
+    revalidatePath("/admin/pickup-points");
+    revalidatePath("/admin/audit-logs");
 
     return NextResponse.json(point, { status: 201 });
   } catch (error) {
