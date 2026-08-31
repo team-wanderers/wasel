@@ -31,43 +31,9 @@ const typeOptions: { value: ItemType; label: string; hint: string }[] = [
   { value: "found", label: "موجود", hint: "وجدت غرضاً وأريد تسليمه" },
 ];
 
-const copy = {
-  lost: {
-    pageTitle: "بلاغ مفقود جديد",
-    titlePlaceholder: "مثال: بطاقة شخصية باسم أحمد محمد",
-    descPlaceholder: "صف الغرض المفقود بدقة — اللون، الحجم، أي علامات فارقة...",
-    imagesLabel: "صور المفقود (اختياري)",
-    dateLabel: "تاريخ الفقدان (اختياري)",
-    locationLabel: "الموقع التقريبي (اختياري)",
-    locationHint: "انقر على الخريطة لتحديد مكان الفقدان",
-    secretLabel: "تفاصيل سرية للتحقق (اختياري)",
-    secretHint: "معلومة لا يعرفها إلا صاحب الغرض — لن تظهر للعامة، تُستخدم لمطابقة المطالبات",
-    secretPlaceholder: "مثال: رقم تسلسلي، خدش في الزاوية، نقش خاص...",
-    categoryError: "يرجى اختيار تصنيف المفقود",
-    submitError: "حدث خطأ، حاول مرة أخرى",
-    submit: "نشر البلاغ",
-    redirect: "/dashboard/items?type=lost",
-    api: "/api/lost",
-    dateKey: "lostAt",
-  },
-  found: {
-    pageTitle: "تسليم غرض وجدته",
-    titlePlaceholder: "مثال: محفظة جلدية سوداء وُجدت في السوق",
-    descPlaceholder: "صف الغرض بدقة — اللون، الحجم، العلامات المميزة...",
-    imagesLabel: "صور الغرض (اختياري)",
-    dateLabel: "تاريخ الإيجاد (اختياري)",
-    locationLabel: "موقع الإيجاد (اختياري)",
-    locationHint: "انقر على الخريطة أو حرِّك الدبوس لتحديد المنطقة",
-    secretLabel: "تفاصيل سرية (اختياري)",
-    secretHint: "معلومة للتحقق من هوية صاحب الغرض — لن تُشارَك مع أي شخص آخر",
-    secretPlaceholder: "مثال: يوجد بداخله بطاقة باسم...",
-    categoryError: "يرجى اختيار تصنيف الغرض",
-    submitError: "حدث خطأ أثناء تسجيل الغرض",
-    submit: "تسجيل الغرض",
-    redirect: "/dashboard/items?type=found",
-    api: "/api/found",
-    dateKey: "foundAt",
-  },
+const endpoints = {
+  lost: { api: "/api/lost", dateKey: "lostAt", redirect: "/dashboard/items?type=lost" },
+  found: { api: "/api/found", dateKey: "foundAt", redirect: "/dashboard/items?type=found" },
 } as const;
 
 function chipStyle(active: boolean): React.CSSProperties {
@@ -103,7 +69,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const selected = itemType ? copy[itemType] : null;
+  const selected = itemType ? endpoints[itemType] : null;
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -125,7 +91,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
       return;
     }
     if (!form.category) {
-      setError(selected.categoryError);
+      setError("يرجى اختيار التصنيف");
       return;
     }
     setLoading(true);
@@ -150,7 +116,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? selected.submitError);
+        setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
         setLoading(false);
       } else {
         router.push(selected.redirect);
@@ -163,9 +129,9 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
   }
 
   return (
-    <div style={{ maxWidth: "680px" }}>
+    <div style={{ maxWidth: "680px", width: "100%" }}>
       <div className="page-header" style={{ marginBottom: "var(--space-8)" }}>
-        <h1 className="page-title">{selected?.pageTitle ?? "بلاغ جديد"}</h1>
+        <h1 className="page-title">بلاغ جديد</h1>
       </div>
 
       {error && (
@@ -221,7 +187,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
             name="title"
             type="text"
             className="input"
-            placeholder={selected?.titlePlaceholder ?? "مثال: محفظة جلدية سوداء"}
+            placeholder="مثال: محفظة جلدية سوداء"
             value={form.title}
             onChange={handleChange}
             required
@@ -253,7 +219,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
             id="description"
             name="description"
             className="textarea"
-            placeholder={selected?.descPlaceholder ?? "صف الغرض بدقة — اللون، الحجم، أي علامات فارقة..."}
+            placeholder="صف الغرض بدقة — اللون، الحجم، أي علامات فارقة..."
             value={form.description}
             onChange={handleChange}
             required
@@ -262,13 +228,13 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
         </div>
 
         <div className="field">
-          <label className="label">{selected?.imagesLabel ?? "صور الغرض (اختياري)"}</label>
+          <label className="label">صور الغرض (اختياري)</label>
           <ImageUploader onUpload={setUploadedImages} />
         </div>
 
         <div className="field">
           <label className="label" htmlFor="occurredAt">
-            {selected?.dateLabel ?? "التاريخ (اختياري)"}
+            التاريخ (اختياري)
           </label>
           <input
             id="occurredAt"
@@ -282,9 +248,9 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
         </div>
 
         <div className="field">
-          <label className="label">{selected?.locationLabel ?? "الموقع التقريبي (اختياري)"}</label>
+          <label className="label">الموقع التقريبي (اختياري)</label>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-            {selected?.locationHint ?? "انقر على الخريطة لتحديد الموقع"}
+            انقر على الخريطة لتحديد الموقع
           </p>
           <LocationPicker
             lat={lat}
@@ -295,16 +261,16 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
 
         <div className="field">
           <label className="label" htmlFor="secretDetails">
-            {selected?.secretLabel ?? "تفاصيل سرية للتحقق (اختياري)"}
+            تفاصيل سرية للتحقق (اختياري)
           </label>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-            {selected?.secretHint ?? "معلومة للتحقق — لن تظهر للعامة"}
+            معلومة للتحقق — لن تظهر للعامة
           </p>
           <textarea
             id="secretDetails"
             name="secretDetails"
             className="textarea"
-            placeholder={selected?.secretPlaceholder ?? "مثال: رقم تسلسلي، خدش، نقش خاص..."}
+            placeholder="مثال: رقم تسلسلي، خدش، نقش خاص..."
             value={form.secretDetails}
             onChange={handleChange}
             rows={2}
@@ -331,7 +297,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
                 </svg>
                 جارٍ النشر...
               </span>
-            ) : (selected?.submit ?? "نشر البلاغ")}
+            ) : "نشر البلاغ"}
           </button>
         </div>
       </form>

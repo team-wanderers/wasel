@@ -12,7 +12,7 @@ export default async function NotificationsPage() {
   await requireUser();
 
   return (
-    <div style={{ maxWidth: "800px" }}>
+    <div style={{ maxWidth: "800px", width: "100%" }}>
       <NotificationsManager />
     </div>
   );

@@ -175,7 +175,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
             whiteSpace: "nowrap",
           }}
         >
-          <span>مطالبات واردة للمراجعة</span>
+          <span>الواردة</span>
           <span
             style={{
               padding: "1px 8px",
@@ -212,7 +212,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
             whiteSpace: "nowrap",
           }}
         >
-          <span>مطالباتي الصادرة</span>
+          <span>الصادرة</span>
           <span
             style={{
               padding: "1px 8px",
@@ -301,7 +301,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
-                  <div>
+    <div style={{ maxWidth: "1000px", width: "100%" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-1)" }}>
                       <span
                         style={{
@@ -449,7 +449,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
                               style={{ color: "hsl(0,65%,35%)", borderColor: "hsl(0,65%,80%)" }}
                             >
                               <IconClose size={14} />
-                              <span>{isLoading ? "جارٍ الحفظ..." : "رفض المطالبة"}</span>
+                              <span>{isLoading ? "جارٍ الحفظ..." : "رفض"}</span>
                             </button>
 
                             <button
@@ -459,7 +459,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
                               className="btn btn-primary btn-sm"
                             >
                               <IconCheck size={14} />
-                              <span>{isLoading ? "جارٍ الحفظ..." : "قبول إثبات الملكية ✓"}</span>
+                              <span>{isLoading ? "جارٍ الحفظ..." : "قبول"}</span>
                             </button>
                           </>
                         )}
@@ -511,7 +511,7 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
 
                     {itemId && (
                       <Link href={`/items/${itemType}/${itemId}`} className="btn btn-ghost btn-sm">
-                        عرض البلاغ
+                        عرض
                       </Link>
                     )}
                   </div>

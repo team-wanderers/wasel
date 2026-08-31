@@ -274,7 +274,7 @@ export default async function ItemDetailPage({
       : "هل عثرت على هذا الغرض؟";
 
   return (
-    <main dir="rtl">
+    <main dir="rtl" style={{ maxWidth: "1000px", width: "100%" }}>
       <div>
         {/* Breadcrumb */}
         <nav
