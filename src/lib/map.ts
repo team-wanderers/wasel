@@ -27,7 +27,7 @@ export function googleMapsStyle(): StyleSpecification {
   };
 }
 
-export function cartoVoyagerStyle(_key = ""): StyleSpecification {
+export function cartoVoyagerStyle(): StyleSpecification {
   return googleMapsStyle();
 }
 
@@ -36,7 +36,6 @@ export function createCartoMap(
   container: HTMLElement,
   center: [number, number],
   zoom: number,
-  _key = "",
 ): Map {
   container.dir = "ltr";
 
