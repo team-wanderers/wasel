@@ -354,6 +354,17 @@ img, video { max-width: 100%; display: block; }
   border-radius: var(--radius-lg);
   border: 1.5px solid var(--color-border);
   overflow: hidden;
+  direction: ltr;
+}
+
+.maplibregl-map,
+.maplibregl-canvas-container {
+  direction: ltr;
+}
+
+.maplibregl-canvas {
+  left: 0;
+  right: auto;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */

@@ -95,6 +95,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     <div>
       <div
         ref={containerRef}
+        dir="ltr"
         className="relative isolate overflow-hidden z-0 w-full h-64 rounded-xl border border-[var(--color-border)]"
         style={{ minHeight: "256px" }}
         aria-label="خريطة تحديد الموقع"

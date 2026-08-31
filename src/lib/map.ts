@@ -1,9 +1,13 @@
 import type { Map } from "maplibre-gl";
 
-export function cartoVoyagerStyle(): string {
+function withCartoKey(url: string): string {
   const key = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
-  const base = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
-  return key ? `${base}?key=${key}` : base;
+  if (!key || !url.includes("cartocdn.com") || /[?&]key=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`;
+}
+
+export function cartoVoyagerStyle(): string {
+  return withCartoKey("https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json");
 }
 
 export function createCartoMap(
@@ -12,6 +16,8 @@ export function createCartoMap(
   center: [number, number],
   zoom: number,
 ): Map {
+  container.dir = "ltr";
+
   if (maplibre.getRTLTextPluginStatus() === "unavailable") {
     void maplibre.setRTLTextPlugin(
       "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js",
@@ -32,6 +38,9 @@ export function createCartoMap(
     dragRotate: false,
     pitchWithRotate: false,
     rollEnabled: false,
+    transformRequest(url) {
+      return { url: withCartoKey(url) };
+    },
   });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-left");
