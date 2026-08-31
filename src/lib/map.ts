@@ -1,5 +1,8 @@
 import type { Map } from "maplibre-gl";
 
+const MAPLIBRE_WORKER =
+  "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl-worker.mjs";
+
 function withCartoKey(url: string, key: string): string {
   if (!key || !url.includes("cartocdn.com") || /[?&]key=/.test(url)) return url;
   return `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`;
@@ -17,6 +20,10 @@ export function createCartoMap(
   key = "",
 ): Map {
   container.dir = "ltr";
+
+  if (maplibre.getWorkerUrl() !== MAPLIBRE_WORKER) {
+    maplibre.setWorkerUrl(MAPLIBRE_WORKER);
+  }
 
   if (maplibre.getRTLTextPluginStatus() === "unavailable") {
     void maplibre.setRTLTextPlugin(
@@ -44,5 +51,18 @@ export function createCartoMap(
   });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-left");
+  map.on("style.load", () => {
+    for (const layer of map.getStyle().layers ?? []) {
+      if (layer.type !== "symbol") continue;
+      const field = map.getLayoutProperty(layer.id, "text-field");
+      if (!field || field === "{housenumber}") continue;
+      map.setLayoutProperty(layer.id, "text-field", [
+        "coalesce",
+        ["get", "name:ar"],
+        ["get", "name"],
+        ["get", "name_en"],
+      ]);
+    }
+  });
   return map;
 }
