@@ -357,7 +357,36 @@ img, video { max-width: 100%; display: block; }
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+.item-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.5fr);
+}
+
+.item-detail-gallery {
+  background: var(--color-bg);
+  padding: var(--space-6);
+  border-inline-end: 1px solid var(--color-border);
+}
+
+.item-detail-body {
+  padding: var(--space-8);
+}
+
 @media (max-width: 768px) {
+  .item-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .item-detail-gallery {
+    border-inline-end: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-4);
+  }
+
+  .item-detail-body {
+    padding: var(--space-5);
+  }
+
   .dashboard-layout {
     grid-template-columns: 1fr;
   }
