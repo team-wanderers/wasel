@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { lostItems, foundItems } from "@/db/schema";
-import { eq, or, ilike, and } from "drizzle-orm";
+import { eq, or, ilike, and, desc, sql } from "drizzle-orm";
 import { categoryLabels, formatRelativeAr, searchCategories } from "@/lib/labels";
 import { getFirstMediaMap } from "@/lib/media";
+import { getArabicSearchVariants } from "@/lib/normalize";
 import ItemCard from "@/components/ItemCard";
 import { IconSearch } from "@/components/icons";
 
@@ -21,20 +22,35 @@ type ItemStatus = "open" | "matched" | "claimed" | "recovered" | "closed";
 
 type SearchParams = { q?: string; category?: string; type?: string; status?: string };
 
+type LostSearchResult = {
+  id: string;
+  title: string;
+  description: string;
+  category: "documents" | "electronics" | "keys" | "bags" | "jewelry" | "pets" | "other";
+  status: ItemStatus;
+  lostAt: Date | null;
+  createdAt: Date;
+  similarityScore: number;
+};
+
+type FoundSearchResult = {
+  id: string;
+  title: string;
+  description: string;
+  category: "documents" | "electronics" | "keys" | "bags" | "jewelry" | "pets" | "other";
+  status: ItemStatus;
+  foundAt: Date | null;
+  createdAt: Date;
+  similarityScore: number;
+};
+
 export default async function SearchPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const { q, category, type, status } = await searchParams;
-
-  const textFilterLost = q
-    ? or(ilike(lostItems.title, `%${q}%`), ilike(lostItems.description, `%${q}%`))
-    : undefined;
-
-  const textFilterFound = q
-    ? or(ilike(foundItems.title, `%${q}%`), ilike(foundItems.description, `%${q}%`))
-    : undefined;
+  const textQuery = q?.trim() || "";
 
   const showLost = !type || type === "lost";
   const showFound = !type || type === "found";
@@ -62,55 +78,169 @@ export default async function SearchPage({
       ? (category as ItemCategory)
       : undefined;
 
-  const [lostResults, foundResults] = await Promise.all([
-    showLost
-      ? db
-          .select({
-            id: lostItems.id,
-            title: lostItems.title,
-            description: lostItems.description,
-            category: lostItems.category,
-            status: lostItems.status,
-            lostAt: lostItems.lostAt,
-            createdAt: lostItems.createdAt,
-          })
-          .from(lostItems)
-          .where(
-            and(
-              statusFilter ? eq(lostItems.status, statusFilter) : undefined,
-              categoryFilter ? eq(lostItems.category, categoryFilter) : undefined,
-              textFilterLost,
-            ),
-          )
-          .limit(50)
-      : Promise.resolve([]),
-    showFound
-      ? db
-          .select({
-            id: foundItems.id,
-            title: foundItems.title,
-            description: foundItems.description,
-            category: foundItems.category,
-            status: foundItems.status,
-            foundAt: foundItems.foundAt,
-            createdAt: foundItems.createdAt,
-          })
-          .from(foundItems)
-          .where(
-            and(
-              statusFilter ? eq(foundItems.status, statusFilter) : undefined,
-              categoryFilter ? eq(foundItems.category, categoryFilter) : undefined,
-              textFilterFound,
-            ),
-          )
-          .limit(50)
-      : Promise.resolve([]),
+  let lostResults: LostSearchResult[] = [];
+  let foundResults: FoundSearchResult[] = [];
+
+  const searchVariants = getArabicSearchVariants(textQuery);
+  const lostVariantConditions = searchVariants.flatMap((v) => [
+    ilike(lostItems.title, `%${v}%`),
+    ilike(lostItems.description, `%${v}%`),
   ]);
+  const foundVariantConditions = searchVariants.flatMap((v) => [
+    ilike(foundItems.title, `%${v}%`),
+    ilike(foundItems.description, `%${v}%`),
+  ]);
+
+  try {
+    const textFilterLost = textQuery
+      ? or(
+          sql`similarity(${lostItems.title}, ${textQuery}) > 0.15`,
+          sql`similarity(${lostItems.description}, ${textQuery}) > 0.15`,
+          ...lostVariantConditions,
+        )
+      : undefined;
+
+    const textFilterFound = textQuery
+      ? or(
+          sql`similarity(${foundItems.title}, ${textQuery}) > 0.15`,
+          sql`similarity(${foundItems.description}, ${textQuery}) > 0.15`,
+          ...foundVariantConditions,
+        )
+      : undefined;
+
+    const lostSimilarityScore = sql<number>`GREATEST(
+      similarity(${lostItems.title}, ${textQuery}),
+      similarity(${lostItems.description}, ${textQuery})
+    )`;
+    const foundSimilarityScore = sql<number>`GREATEST(
+      similarity(${foundItems.title}, ${textQuery}),
+      similarity(${foundItems.description}, ${textQuery})
+    )`;
+
+    const [lost, found] = await Promise.all([
+      showLost
+        ? db
+            .select({
+              id: lostItems.id,
+              title: lostItems.title,
+              description: lostItems.description,
+              category: lostItems.category,
+              status: lostItems.status,
+              lostAt: lostItems.lostAt,
+              createdAt: lostItems.createdAt,
+              similarityScore: textQuery ? lostSimilarityScore : sql<number>`0`,
+            })
+            .from(lostItems)
+            .where(
+              and(
+                statusFilter ? eq(lostItems.status, statusFilter) : undefined,
+                categoryFilter ? eq(lostItems.category, categoryFilter) : undefined,
+                textFilterLost,
+              ),
+            )
+            .orderBy(
+              ...(textQuery
+                ? [desc(lostSimilarityScore), desc(lostItems.createdAt)]
+                : [desc(lostItems.createdAt)]),
+            )
+            .limit(50)
+        : Promise.resolve([]),
+      showFound
+        ? db
+            .select({
+              id: foundItems.id,
+              title: foundItems.title,
+              description: foundItems.description,
+              category: foundItems.category,
+              status: foundItems.status,
+              foundAt: foundItems.foundAt,
+              createdAt: foundItems.createdAt,
+              similarityScore: textQuery ? foundSimilarityScore : sql<number>`0`,
+            })
+            .from(foundItems)
+            .where(
+              and(
+                statusFilter ? eq(foundItems.status, statusFilter) : undefined,
+                categoryFilter ? eq(foundItems.category, categoryFilter) : undefined,
+                textFilterFound,
+              ),
+            )
+            .orderBy(
+              ...(textQuery
+                ? [desc(foundSimilarityScore), desc(foundItems.createdAt)]
+                : [desc(foundItems.createdAt)]),
+            )
+            .limit(50)
+        : Promise.resolve([]),
+    ]);
+    lostResults = lost;
+    foundResults = found;
+  } catch {
+    const plainFilterLost = textQuery ? or(...lostVariantConditions) : undefined;
+    const plainFilterFound = textQuery ? or(...foundVariantConditions) : undefined;
+
+    const [lostFallback, foundFallback] = await Promise.all([
+      showLost
+        ? db
+            .select({
+              id: lostItems.id,
+              title: lostItems.title,
+              description: lostItems.description,
+              category: lostItems.category,
+              status: lostItems.status,
+              lostAt: lostItems.lostAt,
+              createdAt: lostItems.createdAt,
+              similarityScore: sql<number>`0`,
+            })
+            .from(lostItems)
+            .where(
+              and(
+                statusFilter ? eq(lostItems.status, statusFilter) : undefined,
+                categoryFilter ? eq(lostItems.category, categoryFilter) : undefined,
+                plainFilterLost,
+              ),
+            )
+            .orderBy(desc(lostItems.createdAt))
+            .limit(50)
+        : Promise.resolve([]),
+      showFound
+        ? db
+            .select({
+              id: foundItems.id,
+              title: foundItems.title,
+              description: foundItems.description,
+              category: foundItems.category,
+              status: foundItems.status,
+              foundAt: foundItems.foundAt,
+              createdAt: foundItems.createdAt,
+              similarityScore: sql<number>`0`,
+            })
+            .from(foundItems)
+            .where(
+              and(
+                statusFilter ? eq(foundItems.status, statusFilter) : undefined,
+                categoryFilter ? eq(foundItems.category, categoryFilter) : undefined,
+                plainFilterFound,
+              ),
+            )
+            .orderBy(desc(foundItems.createdAt))
+            .limit(50)
+        : Promise.resolve([]),
+    ]);
+    lostResults = lostFallback;
+    foundResults = foundFallback;
+  }
 
   const allResults = [
     ...lostResults.map((r) => ({ ...r, itemType: "lost" as const, date: r.lostAt ?? r.createdAt })),
     ...foundResults.map((r) => ({ ...r, itemType: "found" as const, date: r.foundAt ?? r.createdAt })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  ].sort((a, b) => {
+    if (textQuery) {
+      const scoreDifference = Number(b.similarityScore) - Number(a.similarityScore);
+      if (scoreDifference !== 0) return scoreDifference;
+    }
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   const lostIds: string[] = [];
   const foundIds: string[] = [];

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 export interface NotificationItem {
   id: string;
@@ -23,6 +23,7 @@ interface NotificationContextType {
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const POLL_INTERVAL_MS = 9000;
 
 export function NotificationProvider({
   children,
@@ -36,107 +37,189 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [unreadCount, setUnreadCount] = useState<number>(initialUnreadCount);
   const [loading, setLoading] = useState(false);
-  const markAllLockUntilRef = React.useRef<number>(0);
+  const notificationsRef = useRef(initialNotifications);
+  const unreadCountRef = useRef(initialUnreadCount);
+  const locallyReadIdsRef = useRef(new Map<string, string>());
+  const pendingReadsRef = useRef(
+    new Map<string, { previous: NotificationItem; optimisticReadAt: string }>(),
+  );
+  const pendingMarkAllRef = useRef<{
+    notifications: NotificationItem[];
+    unreadCount: number;
+    optimisticReadAt: string;
+  } | null>(null);
+  const fetchInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+    unreadCountRef.current = unreadCount;
+  }, [notifications, unreadCount]);
 
   const fetchLatest = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications?limit=50", {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store" },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const isLocked = Date.now() < markAllLockUntilRef.current;
+    const inFlight = fetchInFlightRef.current;
+    if (inFlight) return inFlight;
 
-        if (Array.isArray(data.notifications)) {
-          if (isLocked) {
-            setNotifications(
-              data.notifications.map((n: NotificationItem) => ({
-                ...n,
-                readAt: n.readAt ? n.readAt : new Date().toISOString(),
-              }))
-            );
-          } else {
-            setNotifications(data.notifications);
+    const request = (async () => {
+      try {
+        const res = await fetch("/api/notifications?limit=50", {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store" },
+        });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!Array.isArray(data.notifications)) return;
+
+        const serverNotifications = data.notifications as NotificationItem[];
+        const currentById = new Map(notificationsRef.current.map((notification) => [notification.id, notification]));
+        const mergedNotifications = serverNotifications.map((notification) => {
+          const current = currentById.get(notification.id);
+          if (notification.readAt) {
+            locallyReadIdsRef.current.delete(notification.id);
+            return notification;
           }
-        }
+
+          const locallyReadAt = locallyReadIdsRef.current.get(notification.id);
+          if (locallyReadAt) return { ...notification, readAt: locallyReadAt };
+          if (current?.readAt) return { ...notification, readAt: current.readAt };
+          return notification;
+        });
+
+        setNotifications(mergedNotifications);
 
         if (typeof data.unreadCount === "number") {
-          if (isLocked) {
-            setUnreadCount(0);
-          } else {
-            setUnreadCount(data.unreadCount);
+          let nextUnreadCount = data.unreadCount;
+          for (const notification of serverNotifications) {
+            if (
+              !notification.readAt &&
+              (locallyReadIdsRef.current.has(notification.id) || Boolean(currentById.get(notification.id)?.readAt))
+            ) {
+              nextUnreadCount -= 1;
+            }
           }
+
+          setUnreadCount(pendingMarkAllRef.current ? 0 : Math.max(0, nextUnreadCount));
         }
+      } catch (error) {
+        console.error("[NotificationContext] Failed to fetch notifications", error);
       }
-    } catch (e) {
-      console.error("[NotificationContext] Failed to fetch notifications", e);
+    })();
+
+    fetchInFlightRef.current = request;
+    try {
+      await request;
+    } finally {
+      if (fetchInFlightRef.current === request) fetchInFlightRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchLatest();
-    }, 4000);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void fetchLatest();
+    };
 
-    return () => clearInterval(interval);
+    void fetchLatest();
+    const interval = window.setInterval(refreshIfVisible, POLL_INTERVAL_MS);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
   }, [fetchLatest]);
 
   const markAsRead = useCallback(async (id: string) => {
-    // 1. Optimistic update
+    const previous = notificationsRef.current.find((notification) => notification.id === id);
+    if (!previous || previous.readAt || pendingReadsRef.current.has(id)) return;
+
+    const optimisticReadAt = new Date().toISOString();
+    pendingReadsRef.current.set(id, { previous, optimisticReadAt });
+    locallyReadIdsRef.current.set(id, optimisticReadAt);
     setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id
-          ? {
-              ...n,
-              readAt: n.readAt ? n.readAt : new Date().toISOString(),
-            }
-          : n
-      )
+      prev.map((notification) =>
+        notification.id === id ? { ...notification, readAt: optimisticReadAt } : notification,
+      ),
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
 
-    // 2. Background API call
     try {
-      await fetch(`/api/notifications/${id}`, {
+      const res = await fetch(`/api/notifications/${id}`, {
         method: "PATCH",
         cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store" },
       });
+      if (!res.ok) throw new Error("Notification read request failed");
+      pendingReadsRef.current.delete(id);
+      locallyReadIdsRef.current.delete(id);
     } catch (err) {
+      const pendingRead = pendingReadsRef.current.get(id);
+      pendingReadsRef.current.delete(id);
+      locallyReadIdsRef.current.delete(id);
+      if (pendingRead && !pendingMarkAllRef.current) {
+        setNotifications((prev) =>
+          prev.map((notification) =>
+            notification.id === id && notification.readAt === pendingRead.optimisticReadAt
+              ? pendingRead.previous
+              : notification,
+          ),
+        );
+        setUnreadCount((prev) => prev + 1);
+      }
       console.error("[NotificationContext] Failed to mark notification as read", err);
     }
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    // 1. Set 5-second lock against stale polling overwrite
-    markAllLockUntilRef.current = Date.now() + 5000;
-
-    // 2. Optimistic update
+    const previousNotifications = notificationsRef.current;
+    const previousUnreadCount = unreadCountRef.current;
+    const optimisticReadAt = new Date().toISOString();
+    pendingMarkAllRef.current = {
+      notifications: previousNotifications,
+      unreadCount: previousUnreadCount,
+      optimisticReadAt,
+    };
+    previousNotifications.forEach((notification) => {
+      if (!notification.readAt) locallyReadIdsRef.current.set(notification.id, optimisticReadAt);
+    });
     setNotifications((prev) =>
-      prev.map((n) => ({
-        ...n,
-        readAt: n.readAt ? n.readAt : new Date().toISOString(),
-      }))
+      prev.map((notification) => ({
+        ...notification,
+        readAt: notification.readAt || optimisticReadAt,
+      })),
     );
     setUnreadCount(0);
 
-    // 3. Background API call
     try {
-      await fetch("/api/notifications/read-all", {
+      const res = await fetch("/api/notifications/read-all", {
         method: "POST",
         cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store" },
       });
+      if (!res.ok) throw new Error("Mark-all-read request failed");
+      if (pendingMarkAllRef.current?.optimisticReadAt === optimisticReadAt) {
+        pendingMarkAllRef.current = null;
+        previousNotifications.forEach((notification) => locallyReadIdsRef.current.delete(notification.id));
+      }
     } catch (err) {
+      if (pendingMarkAllRef.current?.optimisticReadAt === optimisticReadAt) {
+        pendingMarkAllRef.current = null;
+        previousNotifications.forEach((notification) => locallyReadIdsRef.current.delete(notification.id));
+        setNotifications(previousNotifications);
+        setUnreadCount(previousUnreadCount);
+      }
       console.error("[NotificationContext] Failed to mark all as read", err);
     }
   }, []);
 
   const refreshNotifications = useCallback(async () => {
     setLoading(true);
-    await fetchLatest();
-    setLoading(false);
+    try {
+      await fetchLatest();
+    } finally {
+      setLoading(false);
+    }
   }, [fetchLatest]);
 
   return (

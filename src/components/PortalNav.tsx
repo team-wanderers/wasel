@@ -15,6 +15,13 @@ export default function PortalNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
   const authHref = (href: string) => (signedIn ? href : "/login");
 
+  const closeMobileNav = () => {
+    const toggle = document.getElementById("portal-nav") as HTMLInputElement | null;
+    if (toggle) {
+      toggle.checked = false;
+    }
+  };
+
   const items = [
     { href: "/home", label: "الرئيسية", icon: <IconHome size={21} />, match: (p: string) => p === "/home" || p === "/" },
     { href: authHref("/dashboard/report"), label: "بلاغ جديد", icon: <IconPlus size={21} />, match: (p: string) => p.startsWith("/dashboard/report") },
@@ -30,6 +37,7 @@ export default function PortalNav({ signedIn }: { signedIn: boolean }) {
         <Link
           key={item.label}
           href={item.href}
+          onClick={closeMobileNav}
           className={item.match(pathname) ? "is-active" : undefined}
         >
           {item.icon}

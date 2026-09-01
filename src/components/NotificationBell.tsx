@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNotifications, NotificationItem } from "@/context/NotificationContext";
+import { IconCheck } from "@/components/icons";
 
 export { type NotificationItem };
 
@@ -28,7 +29,7 @@ export default function NotificationBell() {
 
   function handleItemClick(notif: NotificationItem) {
     if (!notif.readAt) {
-      markAsRead(notif.id);
+      void markAsRead(notif.id);
     }
     setIsOpen(false);
     if (notif.link) {
@@ -44,19 +45,11 @@ export default function NotificationBell() {
   const latestNotifications = notifications.slice(0, 6);
 
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "inline-block" }}>
+    <div ref={containerRef} className="relative inline-block" style={{ position: "relative", display: "inline-block" }}>
       <button
         type="button"
         onClick={() => {
-          setIsOpen((prev) => {
-            const next = !prev;
-            if (next) {
-              void markAllAsRead().then(() => {
-                router.refresh();
-              });
-            }
-            return next;
-          });
+          setIsOpen((prev) => !prev);
         }}
         aria-label="التنبيهات والإشعارات"
         style={{
@@ -73,7 +66,6 @@ export default function NotificationBell() {
           transition: "background 150ms",
         }}
       >
-        {/* أيقونة جرس SVG نظيفة */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -117,17 +109,18 @@ export default function NotificationBell() {
       {/* القائمة المنسدلة السريعة Dropdown Popover */}
       {isOpen && (
         <div
+          className="absolute right-0 top-full mt-2 z-50"
           style={{
             position: "absolute",
             top: "calc(100% + var(--space-2))",
-            left: "0",
+            right: 0,
             width: "360px",
             maxWidth: "90vw",
             background: "#fff",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-lg)",
             boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            zIndex: 1000,
+            zIndex: 9999,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
@@ -166,9 +159,7 @@ export default function NotificationBell() {
               <button
                 type="button"
                 onClick={() => {
-                  void markAllAsRead().then(() => {
-                    router.refresh();
-                  });
+                  void markAllAsRead();
                 }}
                 disabled={loading}
                 style={{
@@ -254,7 +245,7 @@ export default function NotificationBell() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          markAsRead(notif.id);
+                          void markAsRead(notif.id);
                         }}
                         title="تحديد كمقروء"
                         style={{
@@ -263,11 +254,12 @@ export default function NotificationBell() {
                           cursor: "pointer",
                           color: "var(--color-text-muted)",
                           padding: "2px",
-                          fontSize: "12px",
-                          lineHeight: 1,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        ✓
+                        <IconCheck size={14} />
                       </button>
                     )}
                   </div>

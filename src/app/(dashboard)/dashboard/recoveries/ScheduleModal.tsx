@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { IconClose } from "@/components/icons";
+import Toast from "@/components/Toast";
+import { focusInvalidField } from "@/lib/form-feedback";
 
 export interface PickupPoint {
   id: string;
@@ -56,13 +58,27 @@ export default function ScheduleModal({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const firstInvalidFieldRef = useRef<HTMLElement | null>(null);
 
   if (!isOpen) return null;
+
+  function handleInvalid(event: React.InvalidEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || firstInvalidFieldRef.current) return;
+
+    firstInvalidFieldRef.current = target;
+    setError("يرجى إكمال الحقول المطلوبة قبل المتابعة.");
+    focusInvalidField(target);
+    window.setTimeout(() => {
+      firstInvalidFieldRef.current = null;
+    }, 0);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedClaimId && !existingRecoveryId) {
       setError("يرجى اختيار مطالبة معتمدة للجدولة");
+      focusInvalidField(document.getElementById("modal-rec-claim"));
       return;
     }
 
@@ -128,9 +144,11 @@ export default function ScheduleModal({
   const activePoint = availablePickupPoints.find((p) => p.id === selectedPickupPointId);
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-    >
+    <>
+      {error && <Toast type="error" message={error} onDismiss={() => setError("")} />}
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      >
       <div
         className="card"
         style={{
@@ -166,16 +184,7 @@ export default function ScheduleModal({
           </button>
         </div>
 
-        {error && (
-          <div
-            className="alert alert-error"
-            style={{ marginBottom: "var(--space-4)", fontSize: "var(--font-size-sm)" }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        <form onSubmit={handleSubmit} onInvalid={handleInvalid} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {!existingRecoveryId && (
             <div className="field">
               <label className="label" htmlFor="modal-rec-claim">
@@ -307,6 +316,7 @@ export default function ScheduleModal({
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

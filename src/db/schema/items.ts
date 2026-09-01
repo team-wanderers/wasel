@@ -60,6 +60,8 @@ export const lostItems = pgTable(
     index("lost_items_user_id_idx").on(t.userId),
     index("lost_items_status_idx").on(t.status),
     index("lost_items_category_idx").on(t.category),
+    index("lost_items_title_trgm_idx").using("gin", t.title.op("gin_trgm_ops")),
+    index("lost_items_description_trgm_idx").using("gin", t.description.op("gin_trgm_ops")),
   ],
 );
 
@@ -77,6 +79,8 @@ export const foundItems = pgTable(
     index("found_items_user_id_idx").on(t.userId),
     index("found_items_status_idx").on(t.status),
     index("found_items_category_idx").on(t.category),
+    index("found_items_title_trgm_idx").using("gin", t.title.op("gin_trgm_ops")),
+    index("found_items_description_trgm_idx").using("gin", t.description.op("gin_trgm_ops")),
   ],
 );
 

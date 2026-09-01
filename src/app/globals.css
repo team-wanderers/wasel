@@ -160,9 +160,12 @@ img, video { max-width: 100%; display: block; }
 
 .btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: #fff !important;
 }
-.btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  color: #fff !important;
+}
 
 .btn-outline {
   background: transparent;
@@ -171,19 +174,26 @@ img, video { max-width: 100%; display: block; }
 }
 .btn-outline:hover:not(:disabled) {
   background: var(--color-primary-light);
+  color: var(--color-primary-dark);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--color-text-secondary);
 }
-.btn-ghost:hover:not(:disabled) { background: var(--color-neutral-light); }
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-neutral-light);
+  color: var(--color-text-primary);
+}
 
 .btn-danger {
   background: var(--color-danger);
-  color: #fff;
+  color: #fff !important;
 }
-.btn-danger:hover:not(:disabled) { background: hsl(0, 65%, 42%); }
+.btn-danger:hover:not(:disabled) {
+  background: hsl(0, 65%, 42%);
+  color: #fff !important;
+}
 
 .btn-sm {
   padding: 0.4rem 0.9rem;
@@ -1050,6 +1060,8 @@ img, video { max-width: 100%; display: block; }
   gap: 10px;
 }
 
+
+
 .portal-brand {
   display: flex;
   align-items: center;
@@ -1097,6 +1109,10 @@ img, video { max-width: 100%; display: block; }
   background: transparent;
   border: none;
   cursor: pointer;
+}
+
+.portal-menu-btn {
+  display: none;
 }
 
 .portal-icon-btn:hover { background: var(--portal-soft); color: var(--portal-ink); }
@@ -1216,9 +1232,14 @@ img, video { max-width: 100%; display: block; }
   align-items: center;
   gap: 6px;
   color: var(--portal-ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 0 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  cursor: default;
+  user-select: none;
 }
 
 .portal-btn {
@@ -1931,6 +1952,7 @@ img, video { max-width: 100%; display: block; }
 @media (max-width: 900px) {
   .portal-top { padding: 12px 16px; }
   .portal-lang { display: none; }
+  .portal-menu-btn { display: grid; }
   .portal-side {
     position: fixed;
     z-index: 50;

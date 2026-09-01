@@ -41,6 +41,7 @@ interface RecoveryCardProps {
   onOpenReschedule: (recovery: RecoveryItem) => void;
   onConfirm: (recoveryId: string) => void;
   onConfirmOtp: (recoveryId: string, otp: string) => void;
+  otpError?: string;
   isConfirming: boolean;
 }
 
@@ -118,6 +119,7 @@ export default function RecoveryCard({
   onOpenReschedule,
   onConfirm,
   onConfirmOtp,
+  otpError,
   isConfirming,
 }: RecoveryCardProps) {
   const [otpValue, setOtpValue] = useState("");
@@ -385,34 +387,58 @@ export default function RecoveryCard({
             {role === "owner" && (
               <>
                 {!recovery.ownerConfirmedAt ? (
-                  <form
-                    onSubmit={handleOtpSubmit}
-                    style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}
-                  >
-                    <input
-                      type="text"
-                      maxLength={4}
-                      placeholder="رمز الاستلام (4 أرقام)"
-                      className="input input-sm"
-                      style={{
-                        width: "150px",
-                        textAlign: "center",
-                        letterSpacing: "3px",
-                        fontWeight: 700,
-                        fontSize: "var(--font-size-sm)",
-                        fontFamily: "monospace",
-                      }}
-                      value={otpValue}
-                      onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
-                    />
-                    <button
-                      type="submit"
-                      className="btn btn-primary btn-sm"
-                      disabled={isConfirming || otpValue.length < 4}
+                  <div>
+                    <form
+                      onSubmit={handleOtpSubmit}
+                      style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}
                     >
-                      {isConfirming ? "جارٍ التحقق..." : "تأكيد الاستلام"}
-                    </button>
-                  </form>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="رمز الاستلام (4 أرقام)"
+                        className="input input-sm"
+                        style={{
+                          width: "150px",
+                          textAlign: "center",
+                          letterSpacing: "3px",
+                          fontWeight: 700,
+                          fontSize: "var(--font-size-sm)",
+                          fontFamily: "monospace",
+                          borderColor: otpError ? "hsl(0, 70%, 55%)" : undefined,
+                          backgroundColor: otpError ? "hsl(0, 100%, 99%)" : undefined,
+                        }}
+                        value={otpValue}
+                        onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
+                        aria-invalid={Boolean(otpError)}
+                        aria-describedby={otpError ? `otp-error-${recovery.id}` : undefined}
+                      />
+                      <button
+                        type="submit"
+                        className="btn btn-primary btn-sm"
+                        disabled={isConfirming || otpValue.length < 4}
+                      >
+                        {isConfirming ? "جارٍ التحقق..." : "تأكيد الاستلام"}
+                      </button>
+                    </form>
+                    {otpError && (
+                      <p
+                        id={`otp-error-${recovery.id}`}
+                        role="alert"
+                        style={{
+                          margin: "var(--space-2) 0 0",
+                          color: "hsl(0,65%,35%)",
+                          fontSize: "var(--font-size-xs)",
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <IconAlertTriangle size={13} />
+                        <span>{otpError}</span>
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <span style={{ fontSize: "var(--font-size-xs)", color: "hsl(142,60%,30%)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
                     <IconCheck size={12} strokeWidth={2.4} /> تم تسجيل استلامك بنجاح

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import ImageUploader from "@/components/ImageUploader";
+import Toast from "@/components/Toast";
+import { focusInvalidField } from "@/lib/form-feedback";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -68,6 +70,9 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
   const [uploadedImages, setUploadedImages] = useState<{ path: string; id: string; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const firstInvalidFieldRef = useRef<HTMLElement | null>(null);
+  const itemTypeFieldRef = useRef<HTMLDivElement>(null);
+  const categoryFieldRef = useRef<HTMLDivElement>(null);
 
   const selected = itemType ? endpoints[itemType] : null;
 
@@ -83,15 +88,29 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
     router.replace(`/dashboard/report?type=${next}`, { scroll: false });
   }
 
+  function handleInvalid(event: React.InvalidEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || firstInvalidFieldRef.current) return;
+
+    firstInvalidFieldRef.current = target;
+    setError("يرجى إكمال الحقول المطلوبة");
+    focusInvalidField(target);
+    window.setTimeout(() => {
+      firstInvalidFieldRef.current = null;
+    }, 0);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
     if (!itemType || !selected) {
       setError("يرجى اختيار نوع البلاغ");
+      focusInvalidField(itemTypeFieldRef.current);
       return;
     }
     if (!form.category) {
       setError("يرجى اختيار التصنيف");
+      focusInvalidField(categoryFieldRef.current);
       return;
     }
     setLoading(true);
@@ -119,7 +138,11 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
         setError(data.error ?? "حدث خطأ، حاول مرة أخرى");
         setLoading(false);
       } else {
-        router.push(selected.redirect);
+        if (data?.id) {
+          router.push(`/items/${itemType}/${data.id}`);
+        } else {
+          router.push(selected.redirect);
+        }
         router.refresh();
       }
     } catch {
@@ -134,14 +157,10 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
         <h1 className="page-title">بلاغ جديد</h1>
       </div>
 
-      {error && (
-        <div className="alert alert-error" style={{ marginBottom: "var(--space-6)" }}>
-          {error}
-        </div>
-      )}
+      {error && <Toast type="error" message={error} onDismiss={() => setError("")} />}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
-        <div className="field">
+      <form onSubmit={handleSubmit} onInvalid={handleInvalid} style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+        <div ref={itemTypeFieldRef} className="field" tabIndex={-1}>
           <label className="label">نوع البلاغ *</label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
             {typeOptions.map((opt) => {
@@ -180,7 +199,7 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
           </div>
         </div>
 
-        <div className="field">
+        <div ref={categoryFieldRef} className="field" tabIndex={-1}>
           <label className="label" htmlFor="title">العنوان *</label>
           <input
             id="title"
@@ -280,8 +299,9 @@ export default function ReportItemForm({ initialType }: { initialType?: ItemType
         <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "flex-end" }}>
           <button
             type="button"
-            className="btn btn-ghost"
+            className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => router.back()}
+            disabled={loading}
           >
             إلغاء
           </button>

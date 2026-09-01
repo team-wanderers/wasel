@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import ImageUploader from "@/components/ImageUploader";
-import { IconCheck, IconLock, IconPencil, IconAlertTriangle, IconTrash, IconClose } from "@/components/icons";
+import { IconLock, IconPencil, IconAlertTriangle, IconTrash, IconClose } from "@/components/icons";
+import Toast from "@/components/Toast";
+import { focusInvalidField } from "@/lib/form-feedback";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
   ssr: false,
@@ -199,6 +201,7 @@ export default function EditLostItemPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const firstInvalidFieldRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     async function loadItem() {
@@ -264,6 +267,19 @@ export default function EditLostItemPage() {
     }));
   }
 
+  function handleInvalid(event: React.InvalidEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || firstInvalidFieldRef.current) return;
+
+    firstInvalidFieldRef.current = target;
+    setSaved(false);
+    setError("يرجى إكمال الحقول المطلوبة قبل الحفظ.");
+    focusInvalidField(target);
+    window.setTimeout(() => {
+      firstInvalidFieldRef.current = null;
+    }, 0);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -303,11 +319,10 @@ export default function EditLostItemPage() {
       }
 
       setSaved(true);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.setTimeout(() => {
+        router.push(`/items/lost/${id}`);
+        router.refresh();
+      }, 700);
     } catch {
       setError("تعذر الاتصال بالخادم. حاول مرة أخرى.");
     } finally {
@@ -365,6 +380,15 @@ export default function EditLostItemPage() {
         onConfirm={handleDelete}
         loading={loading}
       />
+
+      {error && <Toast type="error" message={error} onDismiss={() => setError("")} />}
+      {saved && (
+        <Toast
+          type="success"
+          message="تم حفظ التعديلات وتحديث البلاغ بنجاح."
+          onDismiss={() => setSaved(false)}
+        />
+      )}
 
       <div
         className="page-header"
@@ -434,46 +458,7 @@ export default function EditLostItemPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {error && (
-          <div
-            className="alert alert-error"
-            role="alert"
-            style={{ marginBottom: "var(--space-6)" }}
-          >
-            {error}
-          </div>
-        )}
-
-        {saved && (
-          <div
-            className="alert alert-success"
-            role="status"
-            style={{ marginBottom: "var(--space-6)" }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-              }}
-            >
-              <IconCheck size={18} />
-
-              <div>
-                <strong>تم حفظ التعديلات</strong>
-                <p
-                  style={{
-                    fontSize: "var(--font-size-sm)",
-                    margin: 0,
-                  }}
-                >
-                  تم تحديث البلاغ بنجاح.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+      <form onSubmit={handleSubmit} onInvalid={handleInvalid}>
 
         <fieldset
           disabled={form.status !== "open"}
@@ -811,7 +796,7 @@ export default function EditLostItemPage() {
 
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => router.back()}
             disabled={loading}
             style={{ width: "100%" }}

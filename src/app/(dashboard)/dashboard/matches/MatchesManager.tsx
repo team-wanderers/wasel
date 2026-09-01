@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MediaImage from "@/components/MediaImage";
 import { IconAlertTriangle } from "@/components/icons";
+import Toast from "@/components/Toast";
 
 export interface MatchItem {
   id: string;
@@ -250,7 +251,7 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
           setSelectedTab("suggested");
           setMessage({
             type: "success",
-            text: data.message || "✓ تم تأكيدك - بانتظار الطرف الآخر.",
+            text: data.message || "تم تأكيدك - بانتظار الطرف الآخر.",
           });
         }
       } else if (newStatus === "rejected") {
@@ -319,22 +320,13 @@ function MatchesManagerInner({ initialMatches, currentUserId }: Props) {
         </button>
       </div>
 
-      {/* Global Message Banner */}
+      {/* Global Message Toast */}
       {message && (
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            marginBottom: "var(--space-6)",
-            fontSize: "var(--font-size-sm)",
-            fontWeight: 500,
-            background: message.type === "success" ? "var(--color-success-light)" : "var(--color-danger-light)",
-            color: message.type === "success" ? "hsl(142,60%,25%)" : "hsl(0,65%,35%)",
-            border: `1px solid ${message.type === "success" ? "hsl(142,60%,35%)33" : "hsl(0,65%,35%)33"}`,
-          }}
-        >
-          {message.text}
-        </div>
+        <Toast
+          type={message.type}
+          message={message.text}
+          onDismiss={() => setMessage(null)}
+        />
       )}
 
       {/* Navigation Tabs */}

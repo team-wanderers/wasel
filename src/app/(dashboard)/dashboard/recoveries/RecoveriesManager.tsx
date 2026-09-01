@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ScheduleModal, { PickupPoint, VerifiedClaim } from "./ScheduleModal";
 import RecoveryCard, { RecoveryItem } from "./RecoveryCard";
+import Toast from "@/components/Toast";
 
 interface Props {
   initialRecoveries: RecoveryItem[];
@@ -73,6 +74,7 @@ function RecoveriesManagerInner({
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [otpErrors, setOtpErrors] = useState<Record<string, string>>({});
 
   async function refreshRecoveries() {
     try {
@@ -133,6 +135,7 @@ function RecoveriesManagerInner({
   async function handleConfirmOtp(recId: string, otp: string) {
     setConfirmingId(recId);
     setMessage(null);
+    setOtpErrors((prev) => ({ ...prev, [recId]: "" }));
 
     try {
       const res = await fetch(`/api/recoveries/${recId}/confirm`, {
@@ -143,10 +146,17 @@ function RecoveriesManagerInner({
 
       const data = await res.json();
       if (!res.ok) {
-        setMessage({ type: "error", text: data.error || "رمز الاستلام غير صحيح" });
+        const errorText = data.error || "رمز الاستلام غير صحيح";
+        setOtpErrors((prev) => ({ ...prev, [recId]: errorText }));
+        setMessage({ type: "error", text: errorText });
         return;
       }
 
+      setOtpErrors((prev) => {
+        const next = { ...prev };
+        delete next[recId];
+        return next;
+      });
       setMessage({ type: "success", text: data.message || "تم التحقق من الرمز بنجاح واكتمال التسليم" });
 
       if (data.recovery) {
@@ -156,7 +166,9 @@ function RecoveriesManagerInner({
       }
       router.refresh();
     } catch {
-      setMessage({ type: "error", text: "حدث خطأ أثناء التحقق من الرمز" });
+      const errorText = "حدث خطأ أثناء التحقق من الرمز";
+      setOtpErrors((prev) => ({ ...prev, [recId]: errorText }));
+      setMessage({ type: "error", text: errorText });
     } finally {
       setConfirmingId(null);
     }
@@ -184,19 +196,11 @@ function RecoveriesManagerInner({
       </div>
 
       {message && (
-        <div
-          style={{
-            padding: "var(--space-3) var(--space-4)",
-            borderRadius: "var(--radius-md)",
-            marginBottom: "var(--space-6)",
-            fontSize: "var(--font-size-sm)",
-            fontWeight: 500,
-            background: message.type === "success" ? "var(--color-success-light)" : "var(--color-danger-light)",
-            color: message.type === "success" ? "hsl(142,60%,25%)" : "hsl(0,65%,35%)",
-          }}
-        >
-          {message.text}
-        </div>
+        <Toast
+          type={message.type}
+          message={message.text}
+          onDismiss={() => setMessage(null)}
+        />
       )}
 
       {/* مودال الجدولة وتعديل المواعيد */}
@@ -258,6 +262,7 @@ function RecoveriesManagerInner({
               onOpenReschedule={handleOpenReschedule}
               onConfirm={handleConfirm}
               onConfirmOtp={handleConfirmOtp}
+              otpError={otpErrors[rec.id]}
               isConfirming={confirmingId === rec.id}
             />
           ))}

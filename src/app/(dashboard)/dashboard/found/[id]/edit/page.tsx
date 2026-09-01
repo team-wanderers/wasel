@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import ImageUploader from "@/components/ImageUploader";
-import { IconCheck, IconLock, IconPencil, IconAlertTriangle, IconTrash, IconClose } from "@/components/icons";
+import { IconLock, IconPencil, IconAlertTriangle, IconTrash, IconClose } from "@/components/icons";
+import Toast from "@/components/Toast";
+import { focusInvalidField } from "@/lib/form-feedback";
 
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
@@ -222,6 +224,7 @@ export default function EditFoundItemPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const firstInvalidFieldRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     async function loadItem() {
@@ -287,6 +290,19 @@ export default function EditFoundItemPage() {
     }));
   }
 
+  function handleInvalid(event: React.InvalidEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || firstInvalidFieldRef.current) return;
+
+    firstInvalidFieldRef.current = target;
+    setSaved(false);
+    setError("يرجى إكمال الحقول المطلوبة قبل الحفظ.");
+    focusInvalidField(target);
+    window.setTimeout(() => {
+      firstInvalidFieldRef.current = null;
+    }, 0);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -326,11 +342,10 @@ export default function EditFoundItemPage() {
       }
 
       setSaved(true);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.setTimeout(() => {
+        router.push(`/items/found/${id}`);
+        router.refresh();
+      }, 700);
     } catch {
       setError("تعذر الاتصال بالخادم. حاول مرة أخرى.");
     } finally {
@@ -400,6 +415,15 @@ export default function EditFoundItemPage() {
         onConfirm={handleDelete}
         loading={loading}
       />
+
+      {error && <Toast type="error" message={error} onDismiss={() => setError("")} />}
+      {saved && (
+        <Toast
+          type="success"
+          message="تم حفظ التعديلات وتحديث البلاغ بنجاح."
+          onDismiss={() => setSaved(false)}
+        />
+      )}
 
       <style>{`
         .edit-report-grid {
@@ -485,58 +509,6 @@ export default function EditFoundItemPage() {
         </p>
       </section>
 
-      {saved && (
-        <div
-          className="alert alert-success"
-          style={{
-            marginBottom: "var(--space-6)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "var(--space-3)",
-            }}
-          >
-            <div style={{ color: "var(--color-success)", paddingTop: "0.2rem" }}>
-              <IconCheck size={24} strokeWidth={2} />
-            </div>
-
-            <div>
-              <h2
-                style={{
-                  fontWeight: 700,
-                  marginBottom: "var(--space-1)",
-                }}
-              >
-                تم حفظ التعديلات
-              </h2>
-
-              <p
-                style={{
-                  fontSize: "var(--font-size-sm)",
-                  lineHeight: 1.7,
-                }}
-              >
-                تم تحديث البلاغ بنجاح.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div
-          className="alert alert-error"
-          style={{
-            marginBottom: "var(--space-6)",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
       {/* Alert when editing is disabled */}
       {form.status !== "open" && (
         <div
@@ -570,6 +542,7 @@ export default function EditFoundItemPage() {
 
       <form
         onSubmit={handleSubmit}
+        onInvalid={handleInvalid}
         className="card"
         style={{
           padding: "var(--space-8)",
@@ -875,7 +848,7 @@ export default function EditFoundItemPage() {
 
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => router.back()}
             disabled={loading}
             style={{ width: "100%" }}
