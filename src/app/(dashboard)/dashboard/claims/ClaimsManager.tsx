@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconShield, IconCheck, IconClose, IconAlertTriangle } from "@/components/icons";
+import Toast from "@/components/Toast";
 
 export interface ClaimItem {
   id: string;
@@ -37,8 +38,8 @@ interface Props {
 }
 
 const statusDisplay: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: "⏳ قيد المراجعة والتحقق", color: "hsl(200,60%,30%)", bg: "hsl(200,60%,92%)" },
-  verified:  { label: "✓ معتمد ومثبَّت", color: "hsl(142,60%,25%)", bg: "var(--color-success-light)" },
+  pending:   { label: "قيد المراجعة والتحقق", color: "hsl(200,60%,30%)", bg: "hsl(200,60%,92%)" },
+  verified:  { label: "معتمد ومثبَّت", color: "hsl(142,60%,25%)", bg: "var(--color-success-light)" },
   rejected:  { label: "مرفوض",       color: "hsl(0,65%,35%)",   bg: "var(--color-danger-light)" },
   cancelled: { label: "ملغى",        color: "var(--color-text-muted)", bg: "var(--color-bg-secondary)" },
 };
@@ -135,12 +136,11 @@ function ClaimsManagerInner({ initialClaims, currentUserId }: Props) {
       </div>
 
       {message && (
-        <div
-          className={`alert ${message.type === "success" ? "alert-success" : "alert-error"}`}
-          style={{ marginBottom: "var(--space-6)" }}
-        >
-          {message.text}
-        </div>
+        <Toast
+          type={message.type}
+          message={message.text}
+          onDismiss={() => setMessage(null)}
+        />
       )}
 
       {/* Tabs */}

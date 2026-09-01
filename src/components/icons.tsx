@@ -563,3 +563,19 @@ export function IconEye(props: IconProps) {
     </Icon>
   );
 }
+
+export function IconArrowLeft(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </Icon>
+  );
+}
+
+export function IconChevronLeft(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M15 18l-6-6 6-6" />
+    </Icon>
+  );
+}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import LocationPicker from "@/components/LocationPicker";
+import Toast from "@/components/Toast";
+import { focusInvalidField } from "@/lib/form-feedback";
 
 interface PickupPoint {
   id: string;
@@ -36,7 +38,9 @@ export default function PickupPointsManager({ initialPoints }: Props) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  function resetForm() {
+  const firstInvalidFieldRef = useRef<HTMLElement | null>(null);
+
+  function resetForm(clearFeedback = true) {
     setName("");
     setAddress("");
     setPhone("");
@@ -44,8 +48,10 @@ export default function PickupPointsManager({ initialPoints }: Props) {
     setLat(14.5372);
     setLng(46.8319);
     setIsActive(true);
-    setError("");
-    setSuccess("");
+    if (clearFeedback) {
+      setError("");
+      setSuccess("");
+    }
     setShowAddForm(false);
     setEditingPoint(null);
   }
@@ -62,6 +68,18 @@ export default function PickupPointsManager({ initialPoints }: Props) {
     setError("");
     setSuccess("");
     setShowAddForm(true);
+  }
+
+  function handleInvalid(event: React.InvalidEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || firstInvalidFieldRef.current) return;
+
+    firstInvalidFieldRef.current = target;
+    setError("يرجى إكمال الحقول المطلوبة قبل الحفظ.");
+    focusInvalidField(target);
+    window.setTimeout(() => {
+      firstInvalidFieldRef.current = null;
+    }, 0);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -111,7 +129,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
         setSuccess("تمت إضافة نقطة الاستلام بنجاح");
       }
 
-      resetForm();
+      resetForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
     } finally {
@@ -131,7 +149,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
 
       setPoints((prev) => prev.map((p) => (p.id === point.id ? data : p)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "حدث خطأ");
+      setError(err instanceof Error ? err.message : "حدث خطأ");
     }
   }
 
@@ -176,11 +194,8 @@ export default function PickupPointsManager({ initialPoints }: Props) {
         </div>
       </div>
 
-      {success && (
-        <div className="alert alert-success" style={{ marginBottom: "var(--space-4)", fontSize: "var(--font-size-sm)" }}>
-          {success}
-        </div>
-      )}
+      {success && <Toast type="success" message={success} onDismiss={() => setSuccess("")} />}
+      {error && <Toast type="error" message={error} onDismiss={() => setError("")} />}
 
       {showAddForm && (
         <div className="card" style={{ marginBottom: "var(--space-6)", border: "1px solid var(--color-primary)" }}>
@@ -188,13 +203,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
             {editingPoint ? "تعديل نقطة الاستلام" : "إضافة نقطة استلام جديدة"}
           </h2>
 
-          {error && (
-            <div className="alert alert-error" style={{ marginBottom: "var(--space-4)", fontSize: "var(--font-size-sm)" }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          <form onSubmit={handleSubmit} onInvalid={handleInvalid} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
               <div className="field">
                 <label className="label" htmlFor="point-name">
@@ -282,7 +291,7 @@ export default function PickupPointsManager({ initialPoints }: Props) {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-3)", marginTop: "var(--space-2)" }}>
-              <button type="button" className="btn btn-ghost" onClick={resetForm} disabled={loading}>
+              <button type="button" className="btn btn-ghost" onClick={() => resetForm()} disabled={loading}>
                 إلغاء
               </button>
               <button type="submit" className="btn btn-primary" disabled={loading}>

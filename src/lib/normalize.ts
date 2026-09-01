@@ -50,3 +50,30 @@ export function verifyProof(
   const score = matchScore(proofDescription, secretDetails);
   return { passed: score >= threshold, score };
 }
+
+export function getArabicSearchVariants(query: string): string[] {
+  const variants = new Set<string>();
+  const q = query.trim();
+  if (!q) return [];
+  variants.add(q);
+  const norm = normalizeArabic(q);
+  variants.add(norm);
+
+  const typo1 = q.replace(/ض/g, "ظ");
+  const typo2 = q.replace(/ظ/g, "ض");
+  const typo3 = q.replace(/ذ/g, "ز");
+  const typo4 = q.replace(/ز/g, "ذ");
+  variants.add(typo1);
+  variants.add(typo2);
+  variants.add(typo3);
+  variants.add(typo4);
+
+  if (q.length >= 3 && q.length <= 15) {
+    for (let i = 1; i < q.length - 1; i++) {
+      const wildcard = q.substring(0, i) + "_" + q.substring(i + 1);
+      variants.add(wildcard);
+    }
+  }
+
+  return Array.from(variants);
+}
