@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { lostItems, foundItems, auditLogs, matches } from "@/db/schema";
+import { lostItems, foundItems, matches } from "@/db/schema";
 import { eq, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 const moderateSchema = z.object({
   type: z.enum(["lost", "found"]),
@@ -48,6 +50,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "البلاغ غير موجود" }, { status: 404 });
       }
 
+      if (existing.status === "recovered") {
+        return NextResponse.json(
+          { error: "لا يمكن تعديل حالة بلاغ تم تسليمه واسترجاعه" },
+          { status: 400 },
+        );
+      }
+
       const [updated] = await db
         .update(lostItems)
         .set({
@@ -57,7 +66,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         .where(eq(lostItems.id, id))
         .returning();
 
-      // إذا تم إغلاق البلاغ، تحديث المطابقات النشطة والمقترحة لتصبح منتهية لمنع فتح إجراءات استرجاع
       if (status === "closed") {
         await db
           .update(matches)
@@ -70,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           );
       }
 
-      await db.insert(auditLogs).values({
+      await logAudit({
         actorId: session.id,
         action: "moderate_status",
         entityType: "lost_item",
@@ -86,6 +94,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         },
       });
 
+      revalidatePath("/admin/items");
+      revalidatePath("/admin/audit-logs");
+      revalidatePath("/admin");
+
       return NextResponse.json({ success: true, item: updated });
     } else {
       const [existing] = await db
@@ -98,6 +110,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "البلاغ غير موجود" }, { status: 404 });
       }
 
+      if (existing.status === "recovered") {
+        return NextResponse.json(
+          { error: "لا يمكن تعديل حالة بلاغ تم تسليمه واسترجاعه" },
+          { status: 400 },
+        );
+      }
+
       const [updated] = await db
         .update(foundItems)
         .set({
@@ -107,7 +126,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         .where(eq(foundItems.id, id))
         .returning();
 
-      // إذا تم إغلاق البلاغ، تحديث المطابقات النشطة والمقترحة لتصبح منتهية لمنع فتح إجراءات استرجاع
       if (status === "closed") {
         await db
           .update(matches)
@@ -120,7 +138,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           );
       }
 
-      await db.insert(auditLogs).values({
+      await logAudit({
         actorId: session.id,
         action: "moderate_status",
         entityType: "found_item",
@@ -135,6 +153,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           adminEmail: session.email,
         },
       });
+
+      revalidatePath("/admin/items");
+      revalidatePath("/admin/audit-logs");
+      revalidatePath("/admin");
 
       return NextResponse.json({ success: true, item: updated });
     }

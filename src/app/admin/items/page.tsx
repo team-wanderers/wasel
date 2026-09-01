@@ -1,8 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/db";
-import { lostItems, foundItems, users, itemMedia, auditLogs } from "@/db/schema";
+import { lostItems, foundItems, users, itemMedia, auditLogs, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import AdminItemsManager, { AdminItem, AdminAuditLog } from "./AdminItemsManager";
+import AdminItemsManager, { AdminItem, AdminAuditLog, AdminMatchCandidate } from "./AdminItemsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +105,7 @@ export default async function AdminItemsPage() {
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     images: mediaByLostId.get(r.id) ?? [],
+    matchCandidates: [],
   }));
 
   const foundFormatted: AdminItem[] = foundRows.map((r) => ({
@@ -125,11 +126,81 @@ export default async function AdminItemsPage() {
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     images: mediaByFoundId.get(r.id) ?? [],
+    matchCandidates: [],
   }));
 
   const allItems = [...lostFormatted, ...foundFormatted].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+
+  const itemByKey = new Map(allItems.map((item) => [`${item.type}:${item.id}`, item]));
+  const matchRows =
+    allItems.length > 0
+      ? await db
+          .select({
+            id: matches.id,
+            lostItemId: matches.lostItemId,
+            foundItemId: matches.foundItemId,
+            score: matches.score,
+            status: matches.status,
+          })
+          .from(matches)
+          .orderBy(desc(matches.score))
+      : [];
+
+  const candidatesByItem = new Map<string, AdminMatchCandidate[]>();
+  for (const match of matchRows) {
+    const lostItem = itemByKey.get(`lost:${match.lostItemId}`);
+    const foundItem = itemByKey.get(`found:${match.foundItemId}`);
+    if (!lostItem || !foundItem) continue;
+
+    const lostCandidate: AdminMatchCandidate = {
+      matchId: match.id,
+      matchStatus: match.status,
+      id: lostItem.id,
+      type: "lost",
+      title: lostItem.title,
+      description: lostItem.description,
+      category: lostItem.category,
+      status: lostItem.status,
+      score: match.score,
+      lat: lostItem.lat,
+      lng: lostItem.lng,
+      userName: lostItem.userName,
+      userEmail: lostItem.userEmail,
+      userPhone: lostItem.userPhone,
+    };
+    const foundCandidate: AdminMatchCandidate = {
+      matchId: match.id,
+      matchStatus: match.status,
+      id: foundItem.id,
+      type: "found",
+      title: foundItem.title,
+      description: foundItem.description,
+      category: foundItem.category,
+      status: foundItem.status,
+      score: match.score,
+      lat: foundItem.lat,
+      lng: foundItem.lng,
+      userName: foundItem.userName,
+      userEmail: foundItem.userEmail,
+      userPhone: foundItem.userPhone,
+    };
+
+    candidatesByItem.set(`lost:${lostItem.id}`, [
+      ...(candidatesByItem.get(`lost:${lostItem.id}`) ?? []),
+      foundCandidate,
+    ]);
+    candidatesByItem.set(`found:${foundItem.id}`, [
+      ...(candidatesByItem.get(`found:${foundItem.id}`) ?? []),
+      lostCandidate,
+    ]);
+  }
+
+  const itemsWithCandidates = allItems.map((item) => ({
+    ...item,
+    matchCandidates: candidatesByItem.get(`${item.type}:${item.id}`) ?? [],
+  }));
 
   // 5. استعلام سجلات الرقابة (Audit Logs) الخاصة بالإشراف
   const logRows = await db
@@ -163,9 +234,9 @@ export default async function AdminItemsPage() {
   }));
 
   return (
-    <AdminItemsManager
-      initialItems={allItems}
-      initialAuditLogs={formattedAuditLogs}
-    />
+      <AdminItemsManager
+        initialItems={itemsWithCandidates}
+        initialAuditLogs={formattedAuditLogs}
+      />
   );
 }

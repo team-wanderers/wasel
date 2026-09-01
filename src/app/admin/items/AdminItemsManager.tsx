@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import MediaImage from "@/components/MediaImage";
 import {
@@ -10,7 +11,27 @@ import {
   IconClose,
   IconShield,
   IconPackage,
+  IconMapPin,
 } from "@/components/icons";
+
+export type AdminItemStatus = "open" | "matched" | "claimed" | "recovered" | "closed";
+
+export interface AdminMatchCandidate {
+  matchId: string;
+  matchStatus: "suggested" | "accepted" | "rejected" | "expired";
+  id: string;
+  type: "lost" | "found";
+  title: string;
+  description: string;
+  category: string;
+  status: AdminItemStatus;
+  score: number;
+  lat: number | null;
+  lng: number | null;
+  userName: string | null;
+  userEmail: string | null;
+  userPhone: string | null;
+}
 
 export interface AdminItem {
   id: string;
@@ -22,7 +43,7 @@ export interface AdminItem {
   title: string;
   description: string;
   category: string;
-  status: "open" | "matched" | "claimed" | "recovered" | "closed";
+  status: AdminItemStatus;
   lat: number | null;
   lng: number | null;
   secretDetails: string | null;
@@ -30,6 +51,7 @@ export interface AdminItem {
   createdAt: string | Date;
   updatedAt: string | Date;
   images: string[];
+  matchCandidates: AdminMatchCandidate[];
 }
 
 export interface AdminAuditLog {
@@ -103,15 +125,12 @@ const categoryLabels: Record<string, string> = {
   other: "أخرى",
 };
 
-const reasonPresets = [
-  "تم حل البلاغ واسترجاعه بنجاح",
-  "محتوى مكرر أو سبام",
-  "مخالف للشروط والأحكام",
-  "بيانات غير مكتملة أو غير واضحة",
-  "إغلاق بناءً على طلب صاحب البلاغ",
-  "إعادة تنشيط البلاغ بعد المراجعة",
-  "أخرى",
-];
+const matchStatusLabels: Record<string, string> = {
+  suggested: "مقترحة",
+  accepted: "مقبولة",
+  rejected: "مرفوضة",
+  expired: "منتهية",
+};
 
 function formatDate(val: string | Date | null | undefined) {
   if (!val) return "—";
@@ -134,14 +153,61 @@ export default function AdminItemsManager({
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Modal State
-  const [modalItem, setModalItem] = useState<AdminItem | null>(null);
-  const [modalStatus, setModalStatus] = useState<AdminItem["status"]>("open");
-  const [modalReason, setModalReason] = useState(reasonPresets[0]);
-  const [modalCustomNotes, setModalCustomNotes] = useState("");
+  const [drawerItem, setDrawerItem] = useState<AdminItem | null>(null);
+  const [confirmationItem, setConfirmationItem] = useState<AdminItem | null>(null);
+  const [confirmationStatus, setConfirmationStatus] = useState<AdminItemStatus>("closed");
+  const [confirmationReason, setConfirmationReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const drawerDialogRef = useRef<HTMLDivElement>(null);
+  const confirmationDialogRef = useRef<HTMLDivElement>(null);
+  const submittingRef = useRef(false);
+  const portalTarget = typeof document === "undefined" ? null : document.body;
+
+  useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
+
+  useEffect(() => {
+    const dialog = confirmationItem ? confirmationDialogRef.current : drawerDialogRef.current;
+    if (!dialog) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableElements = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    focusableElements[0]?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (submittingRef.current) return;
+        event.preventDefault();
+        if (confirmationItem) setConfirmationItem(null);
+        else setDrawerItem(null);
+        return;
+      }
+
+      if (event.key !== "Tab" || focusableElements.length === 0) return;
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [confirmationItem, drawerItem]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -173,42 +239,48 @@ export default function AdminItemsManager({
     });
   }, [items, activeTab, selectedStatus, searchQuery]);
 
-  function openModerationModal(item: AdminItem, targetStatus?: AdminItem["status"]) {
-    setModalItem(item);
-    setModalStatus(targetStatus ?? item.status);
-    setModalReason(
-      targetStatus === "closed"
-        ? "مخالف للشروط والأحكام"
-        : targetStatus === "recovered"
-        ? "تم حل البلاغ واسترجاعه بنجاح"
-        : reasonPresets[0]
-    );
-    setModalCustomNotes("");
+  function openStatusConfirmation(item: AdminItem, targetStatus: AdminItemStatus) {
+    setConfirmationItem(item);
+    setConfirmationStatus(targetStatus);
+    setConfirmationReason("");
     setActionError("");
     setActionSuccess("");
   }
 
-  function closeModal() {
-    setModalItem(null);
+  function openModerationDrawer(item: AdminItem) {
+    setDrawerItem(item);
+    setActionError("");
+    setActionSuccess("");
+  }
+
+  function closeStatusConfirmation() {
+    if (submitting) return;
+    setConfirmationItem(null);
     setActionError("");
   }
 
-  async function handleModerateSubmit(e: React.FormEvent) {
+  function closeModerationDrawer() {
+    if (submitting) return;
+    setDrawerItem(null);
+    setActionError("");
+  }
+
+  async function handleStatusSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!modalItem) return;
+    if (!confirmationItem) return;
 
     setSubmitting(true);
     setActionError("");
+    const reason = confirmationReason.trim() || null;
 
     try {
-      const res = await fetch(`/api/admin/items/${modalItem.id}`, {
+      const res = await fetch(`/api/admin/items/${confirmationItem.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: modalItem.type,
-          status: modalStatus,
-          reason: modalReason,
-          notes: modalCustomNotes.trim() || null,
+          type: confirmationItem.type,
+          status: confirmationStatus,
+          reason,
         }),
       });
 
@@ -223,8 +295,15 @@ export default function AdminItemsManager({
       // Update local items state
       setItems((prev) =>
         prev.map((it) =>
-          it.id === modalItem.id ? { ...it, status: modalStatus, updatedAt: new Date() } : it
+          it.id === confirmationItem.id && it.type === confirmationItem.type
+            ? { ...it, status: confirmationStatus, updatedAt: new Date() }
+            : it
         )
+      );
+      setDrawerItem((current) =>
+        current && current.id === confirmationItem.id && current.type === confirmationItem.type
+          ? { ...current, status: confirmationStatus, updatedAt: new Date() }
+          : current,
       );
 
       // Add to local audit logs
@@ -234,26 +313,23 @@ export default function AdminItemsManager({
         actorName: "مشرف النظام الحالي",
         actorEmail: null,
         action: "moderate_status",
-        entityType: modalItem.type === "lost" ? "lost_item" : "found_item",
-        entityId: modalItem.id,
+        entityType: confirmationItem.type === "lost" ? "lost_item" : "found_item",
+        entityId: confirmationItem.id,
         meta: {
-          itemTitle: modalItem.title,
-          previousStatus: modalItem.status,
-          newStatus: modalStatus,
-          reason: modalReason,
-          notes: modalCustomNotes.trim() || null,
+          itemTitle: confirmationItem.title,
+          previousStatus: confirmationItem.status,
+          newStatus: confirmationStatus,
+          reason: reason || "تعديل إشرافي بواسطة المشرف",
+          notes: null,
         },
         createdAt: new Date(),
       };
 
       setAuditLogs((prev) => [newLog, ...prev]);
 
-      setActionSuccess(`تم تعديل حالة "${modalItem.title}" إلى (${statusConfig[modalStatus]?.label || modalStatus}) بنجاح.`);
+      setActionSuccess(`تم تعديل حالة "${confirmationItem.title}" إلى (${statusConfig[confirmationStatus]?.label || confirmationStatus}) بنجاح.`);
       setSubmitting(false);
-
-      setTimeout(() => {
-        closeModal();
-      }, 900);
+      setConfirmationItem(null);
     } catch {
       setActionError("حدث خطأ في الاتصال بالخادم");
       setSubmitting(false);
@@ -472,8 +548,10 @@ export default function AdminItemsManager({
                 style={{
                   position: "absolute",
                   right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
+                  top: 0,
+                  bottom: 0,
+                  display: "flex",
+                  alignItems: "center",
                   color: "var(--color-text-muted)",
                   pointerEvents: "none",
                 }}
@@ -499,8 +577,8 @@ export default function AdminItemsManager({
                 { key: "all", label: "الكل" },
                 { key: "open", label: "مفتوح" },
                 { key: "matched", label: "مطابق" },
-                { key: "claimed", label: "مُطالب به" },
-                { key: "recovered", label: "مسترجع" },
+                 { key: "claimed", label: "مُطالب به" },
+                 { key: "recovered", label: "مسترجع" },
                 { key: "closed", label: "مغلق" },
               ].map((st) => (
                 <button
@@ -674,8 +752,8 @@ export default function AdminItemsManager({
                               flexWrap: "wrap",
                             }}
                           >
-                            <span>👤 {item.userName || "مجهول"} ({item.userEmail || item.userPhone || "بدون وسيلة تواصل"})</span>
-                            <span>📅 {formatDate(item.createdAt)}</span>
+                            <span>{item.userName || "مجهول"} ({item.userEmail || item.userPhone || "بدون وسيلة تواصل"})</span>
+                            <span>{formatDate(item.createdAt)}</span>
                           </div>
                         </div>
                       </div>
@@ -704,30 +782,37 @@ export default function AdminItemsManager({
                         </span>
 
                         <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                          {item.status !== "closed" ? (
+                          {item.status === "recovered" ? (
+                            <span
+                              className="inline-flex cursor-not-allowed items-center rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500"
+                              aria-disabled="true"
+                            >
+                              مكتمل / مسترجع
+                            </span>
+                          ) : item.status === "closed" ? (
                             <button
                               type="button"
-                              className="btn btn-danger btn-sm"
-                              onClick={() => openModerationModal(item, "closed")}
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => openStatusConfirmation(item, "open")}
                               style={{ fontSize: "11px", padding: "3px 8px" }}
                             >
-                              إغلاق / حجب
+                              إعادة تنشيط
                             </button>
                           ) : (
                             <button
                               type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => openModerationModal(item, "open")}
+                              className="btn btn-danger btn-sm"
+                              onClick={() => openStatusConfirmation(item, "closed")}
                               style={{ fontSize: "11px", padding: "3px 8px" }}
                             >
-                              إعادة تنشيط
+                              إغلاق / حجب
                             </button>
                           )}
 
                           <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={() => openModerationModal(item)}
+                            onClick={() => openModerationDrawer(item)}
                             style={{ fontSize: "11px", padding: "3px 8px" }}
                           >
                             إشراف متقدم...
@@ -840,156 +925,284 @@ export default function AdminItemsManager({
         </div>
       )}
 
-      {/* Moderation Modal Dialog */}
-      {modalItem && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              maxWidth: "520px",
-              padding: "var(--space-6)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--space-4)",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontSize: "var(--font-size-lg)", fontWeight: 800 }}>
-                تعديل حالة البلاغ (إشراف الرقابة)
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--color-text-muted)",
+      {(drawerItem || confirmationItem) &&
+        portalTarget &&
+        createPortal(
+          <>
+            {drawerItem && (
+              <div
+                className="fixed inset-0 z-[9999] overflow-hidden bg-black/60 backdrop-blur-sm"
+                role="presentation"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) closeModerationDrawer();
                 }}
               >
-                <IconClose size={20} />
+                <aside
+                  ref={drawerDialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="moderation-drawer-title"
+                  tabIndex={-1}
+                  className="fixed top-0 bottom-0 right-0 z-[10000] flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-slate-200 bg-white shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-900"
+                  onClick={(event) => event.stopPropagation()}
+                >
+            <div className="sticky top-0 z-20 shrink-0 bg-white/95 p-4 backdrop-blur-md border-b border-slate-200 dark:bg-slate-900/95 dark:border-slate-800 flex items-center justify-between">
+              <div className="min-w-0">
+                <h2 id="moderation-drawer-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  تفاصيل الإشراف المتقدم
+                </h2>
+                <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{drawerItem.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerItem(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                aria-label="إغلاق لوحة الإشراف المتقدم"
+              >
+                <span className="text-base font-bold" aria-hidden="true">✕</span>
+                <span>إغلاق</span>
               </button>
             </div>
 
-            {actionError && (
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {drawerItem.type === "lost" ? "بلاغ مفقود" : "بلاغ معثور عليه"}
+                </span>
+                <span
+                  className="rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ background: statusConfig[drawerItem.status]?.bg, color: statusConfig[drawerItem.status]?.color }}
+                >
+                  {statusConfig[drawerItem.status]?.label || drawerItem.status}
+                </span>
+                <span className="text-xs text-slate-500">{categoryLabels[drawerItem.category] || drawerItem.category}</span>
+              </div>
+
+              {drawerItem.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {drawerItem.images.map((image, index) => (
+                    <MediaImage
+                      key={`${image}-${index}`}
+                      src={image.startsWith("/") ? image : `/${image}`}
+                      alt={`${drawerItem.title} ${index + 1}`}
+                      width={160}
+                      height={120}
+                      style={{ width: "100%", height: "96px", objectFit: "cover", borderRadius: "var(--radius-md)" }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <section aria-labelledby="moderation-item-details-title" className="space-y-3">
+                <h3 id="moderation-item-details-title" className="text-sm font-bold text-slate-800">تفاصيل البلاغ</h3>
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{drawerItem.description}</p>
+                  {drawerItem.secretDetails && (
+                    <div className="mt-4 border-t border-slate-200 pt-3">
+                      <p className="text-xs font-semibold text-slate-500">التفاصيل السرية</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{drawerItem.secretDetails}</p>
+                    </div>
+                  )}
+                </div>
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <dt className="text-xs text-slate-500">تاريخ البلاغ</dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-800">{formatDate(drawerItem.date || drawerItem.createdAt)}</dd>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <dt className="text-xs text-slate-500">معرف البلاغ</dt>
+                    <dd className="mt-1 break-all font-mono text-xs text-slate-700" dir="ltr">{drawerItem.id}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section aria-labelledby="moderation-reporter-title" className="space-y-3">
+                <h3 id="moderation-reporter-title" className="text-sm font-bold text-slate-800">بيانات المبلّغ</h3>
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">الاسم</dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-800">{drawerItem.userName || "غير مسجل"}</dd>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">البريد الإلكتروني</dt>
+                    <dd className="mt-1 break-all text-sm font-semibold text-slate-800" dir="ltr">{drawerItem.userEmail || "غير مسجل"}</dd>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">الهاتف</dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-800" dir="ltr">{drawerItem.userPhone || "غير مسجل"}</dd>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">معرف المستخدم</dt>
+                    <dd className="mt-1 break-all font-mono text-xs text-slate-700" dir="ltr">{drawerItem.userId}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section aria-labelledby="moderation-location-title" className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <IconMapPin size={17} className="text-slate-500" />
+                  <h3 id="moderation-location-title" className="text-sm font-bold text-slate-800">الموقع والإحداثيات</h3>
+                </div>
+                {drawerItem.lat != null && drawerItem.lng != null ? (
+                  <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
+                    <div>
+                      <p className="text-xs text-slate-500">خط العرض</p>
+                      <p className="mt-1 font-mono text-sm font-semibold text-slate-800" dir="ltr">{drawerItem.lat}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">خط الطول</p>
+                      <p className="mt-1 font-mono text-sm font-semibold text-slate-800" dir="ltr">{drawerItem.lng}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">لم يحدد المبلّغ إحداثيات دقيقة.</p>
+                )}
+              </section>
+
+              <section aria-labelledby="moderation-matches-title" className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 id="moderation-matches-title" className="text-sm font-bold text-slate-800">مرشحو المطابقة</h3>
+                  <span className="text-xs text-slate-500">{drawerItem.matchCandidates.length} مرشح</span>
+                </div>
+                {drawerItem.matchCandidates.length === 0 ? (
+                  <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">لا توجد مطابقات مرتبطة بهذا البلاغ.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {drawerItem.matchCandidates.map((candidate) => (
+                      <div key={candidate.matchId} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-500">
+                              {candidate.type === "lost" ? "بلاغ مفقود" : "بلاغ معثور عليه"}
+                            </p>
+                            <p className="mt-1 font-semibold text-slate-900">{candidate.title}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {categoryLabels[candidate.category] || candidate.category} · {candidate.userName || "مستخدم غير معروف"}
+                            </p>
+                            <p className="mt-2 line-clamp-2 text-xs leading-6 text-slate-600">{candidate.description}</p>
+                          </div>
+                          <div className="shrink-0 text-left" dir="ltr">
+                            <p className="text-lg font-bold text-blue-700">{Math.round(candidate.score * 100)}%</p>
+                            <p className="text-[11px] text-slate-500" dir="rtl">نسبة المطابقة</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                          <span className="rounded-full bg-white px-2.5 py-1">حالة البلاغ: {statusConfig[candidate.status]?.label || candidate.status}</span>
+                          <span className="rounded-full bg-white px-2.5 py-1">حالة المطابقة: {matchStatusLabels[candidate.matchStatus] || candidate.matchStatus}</span>
+                          {candidate.lat != null && candidate.lng != null && (
+                            <span className="rounded-full bg-white px-2.5 py-1" dir="ltr">{candidate.lat}, {candidate.lng}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <div className="sticky bottom-0 shrink-0 border-t border-slate-200 bg-white p-5 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+              <p className="mb-3 text-xs font-semibold text-slate-500">إجراءات سريعة</p>
+              <div className="flex flex-wrap gap-2">
+                {drawerItem.status === "recovered" ? (
+                  <span
+                    className="inline-flex cursor-not-allowed items-center rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500"
+                    aria-disabled="true"
+                  >
+                    مكتمل / مسترجع
+                  </span>
+                ) : drawerItem.status === "closed" ? (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => openStatusConfirmation(drawerItem, "open")}>
+                    إعادة تنشيط البلاغ
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => openStatusConfirmation(drawerItem, "closed")}>
+                      إغلاق البلاغ
+                    </button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openStatusConfirmation(drawerItem, "closed")}>
+                      حجب البلاغ
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+                </aside>
+              </div>
+            )}
+
+            {confirmationItem && (
               <div
-                role="alert"
-                style={{
-                  padding: "var(--space-3)",
-                  background: "var(--color-danger-light)",
-                  color: "hsl(0,70%,35%)",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "var(--font-size-sm)",
-                  fontWeight: 600,
+                className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                role="presentation"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) closeStatusConfirmation();
                 }}
               >
+                <div
+                  ref={confirmationDialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="status-confirmation-title"
+                  aria-describedby="status-confirmation-description"
+                  className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl outline-none sm:p-6"
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500">تأكيد الإجراء الإداري</p>
+                <h2 id="status-confirmation-title" className="mt-1 text-lg font-bold text-slate-900">
+                  {confirmationStatus === "open" ? "إعادة تنشيط البلاغ؟" : "إغلاق أو حجب البلاغ؟"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                onClick={closeStatusConfirmation}
+                aria-label="إغلاق نافذة تأكيد الإجراء"
+                disabled={submitting}
+              >
+                <IconClose size={17} />
+              </button>
+            </div>
+
+            <p id="status-confirmation-description" className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+              سيتم تطبيق الإجراء على <strong>{confirmationItem.title}</strong> وتسجيله في سجل التدقيق.
+            </p>
+
+            {actionError && (
+              <div role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
                 {actionError}
               </div>
             )}
 
-            {/* Target Item Info */}
-            <div
-              style={{
-                padding: "var(--space-3)",
-                background: "var(--color-bg-secondary)",
-                borderRadius: "var(--radius-md)",
-                fontSize: "var(--font-size-sm)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-              }}
-            >
-              <div style={{ fontWeight: 700 }}>
-                {modalItem.title}
-              </div>
-              <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
-                النوع: {modalItem.type === "lost" ? "بلاغ مفقود" : "بلاغ معثور عليه"} • الناشر: {modalItem.userName || "مجهول"}
-              </div>
-              <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
-                الحالة الحالية: <strong style={{ color: "var(--color-text-primary)" }}>{statusConfig[modalItem.status]?.label || modalItem.status}</strong>
-              </div>
-            </div>
-
-            <form onSubmit={handleModerateSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              {/* Select Status */}
+            <form onSubmit={handleStatusSubmit} className="mt-4 space-y-4">
               <div className="field">
-                <label className="label" htmlFor="modalStatus">الحالة الجديدة المعتمدة *</label>
-                <select
-                  id="modalStatus"
-                  className="input"
-                  value={modalStatus}
-                  onChange={(e) => setModalStatus(e.target.value as AdminItem["status"])}
-                  required
-                >
-                  <option value="open">مفتوح / نشط (open)</option>
-                  <option value="matched">مطابق مع بلاغ آخر (matched)</option>
-                  <option value="claimed">مُطالب به ومثبت (claimed)</option>
-                  <option value="recovered">مسترجع ومكتمل الاستلام (recovered)</option>
-                  <option value="closed">مغلق / محجوب (closed)</option>
-                </select>
-              </div>
-
-              {/* Select Reason Preset */}
-              <div className="field">
-                <label className="label" htmlFor="modalReason">سبب الإجراء الإشرافي *</label>
-                <select
-                  id="modalReason"
-                  className="input"
-                  value={modalReason}
-                  onChange={(e) => setModalReason(e.target.value)}
-                  required
-                >
-                  {reasonPresets.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Custom Notes */}
-              <div className="field">
-                <label className="label" htmlFor="modalNotes">ملاحظات إضافية / تفاصيل الرقابة (اختياري)</label>
+                <label className="label" htmlFor="statusReason">سبب الإجراء (اختياري)</label>
                 <textarea
-                  id="modalNotes"
+                  id="statusReason"
                   className="input"
                   rows={3}
-                  placeholder="اكتب أي ملاحظات موجهة للإدارة أو لسجل العمليات..."
-                  value={modalCustomNotes}
-                  onChange={(e) => setModalCustomNotes(e.target.value)}
+                  placeholder="أضف سبباً يظهر في سجل التدقيق..."
+                  value={confirmationReason}
+                  onChange={(event) => setConfirmationReason(event.target.value)}
+                  disabled={submitting}
                 />
               </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={closeModal}
-                  disabled={submitting}
-                >
+              <div className="flex justify-end gap-2">
+                <button type="button" className="btn btn-ghost" onClick={closeStatusConfirmation} disabled={submitting}>
                   إلغاء
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submitting}
-                >
-                  {submitting ? "جارٍ حفظ الإجراء..." : "تأكيد وتسجيل الإجراء في Audit Logs"}
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? "جارٍ تنفيذ الإجراء..." : "تأكيد وتسجيل"}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+                </div>
+              </div>
+            )}
+          </>,
+          portalTarget,
+        )}
     </div>
   );
 }
