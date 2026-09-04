@@ -48,3 +48,4 @@ next-env.d.ts
 
 # Ignore local design specs images
 docs/design_specs/
+docs/_pdf/
