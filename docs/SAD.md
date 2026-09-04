@@ -1,276 +1,187 @@
 # وثيقة العمارة البرمجية (SAD)
-# Software Architecture Document — واصل (Wasel)
 
-**الإصدار:** 1.0  
-**التاريخ:** 2026-08-17  
-**المشروع:** واصل — نظام إدارة المفقودات
+واصل، منصة المفقودات والموجودات. الإصدار 2.0 بتاريخ 3 سبتمبر 2026. الشكل مونوليث طبقي فوق Next.js App Router.
 
----
+## 1. النظرة العامة
 
-## 1. نظرة معمارية عامة
+واصل تطبيق ويب واحد فيه الواجهة ومنطق الأعمال ومسارات HTTP. يناسب فريقاً صغيراً ومدينة واحدة، ولا يحتاج طوابير أو خدمات إضافية.
 
-يعتمد واصل على معمارية **Layered Monolith** مبنية فوق Next.js App Router، مع فصل واضح بين طبقات العرض، وطبقة الأعمال، وطبقة البيانات. الاختيار مبرَّر بحجم الفريق (صغير) والنطاق الجغرافي المحدد.
+```mermaid
+flowchart TB
+  browser["المتصفح: React Server Components وجزر عميل"]
+  router["Next.js App Router"]
+  public["عام"]
+  auth["دخول"]
+  dash["لوحة المستخدم"]
+  admin["إدارة"]
+  api["معالجات المسارات + Zod + حراس الجلسة"]
+  lib["طبقة الأعمال: matching و auth و notify و mail و settings"]
+  db["Drizzle ORM ثم PostgreSQL 17"]
+  ext["ملفات uploads و SMTP و خرائط CARTO / MapLibre"]
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   BROWSER / CLIENT                  │
-│         React Server Components + Client Islands    │
-├─────────────────────────────────────────────────────┤
-│               NEXT.JS APP ROUTER                    │
-│  ┌────────────┐ ┌─────────────┐ ┌────────────────┐ │
-│  │  (public)  │ │ (dashboard) │ │     admin/     │ │
-│  │  /search   │ │ /lost /found│ │  /users /items │ │
-│  │  /items    │ │ /matches    │ │  /pickups      │ │
-│  └────────────┘ └─────────────┘ └────────────────┘ │
-├─────────────────────────────────────────────────────┤
-│               SERVER ACTIONS / ROUTE HANDLERS       │
-│         Validation (Zod) · Auth Guards              │
-├─────────────────────────────────────────────────────┤
-│                  BUSINESS LOGIC LIB                 │
-│   src/lib/matching.ts  ·  src/lib/auth.ts           │
-│   src/lib/notify.ts    ·  src/lib/env.ts            │
-├─────────────────────────────────────────────────────┤
-│               DRIZZLE ORM LAYER                     │
-│         src/db/schema/*  ·  src/db/index.ts         │
-├─────────────────────────────────────────────────────┤
-│              POSTGRESQL (Docker)                    │
-│  users · sessions · otp_codes                      │
-│  lost_items · found_items · item_media              │
-│  matches · claims · pickup_points · recoveries      │
-│  notifications · audit_logs · settings              │
-└─────────────────────────────────────────────────────┘
+  browser --> router
+  router --> public
+  router --> auth
+  router --> dash
+  router --> admin
+  public --> api
+  auth --> api
+  dash --> api
+  admin --> api
+  api --> lib
+  lib --> db
+  lib --> ext
 ```
 
----
+## 2. التقنيات
 
-## 2. طبقة قاعدة البيانات
+| الطبقة | الاختيار | السبب |
+|---|---|---|
+| الإطار | Next.js 16 (App Router) | صفحات الخادم ومسارات API في مشروع واحد |
+| اللغة | TypeScript 5 على Node 22 أو أحدث | الأنواع تتوافق مع Drizzle و Zod |
+| الواجهة | React 19 و Tailwind CSS 4 | تصميم واحد بلا طبقات إضافية |
+| قاعدة البيانات | PostgreSQL 17 | علاقات وحالات واستعلام جغرافي بسيط |
+| ORM | Drizzle | خفيف والمخطط موجود في `src/db/schema` |
+| المصادقة | Better Auth ببريد OTP | جلسة في Postgres بلا كلمة مرور |
+| التحقق من المدخلات | Zod 4 | كل طلب API يُفحص قبل الكتابة |
+| الخرائط | MapLibre مع CARTO Voyager | تحديد موقع الفقدان أو العثور |
+| البريد | Nodemailer | إرسال رمز الدخول |
+| التشغيل | Docker standalone و Compose | بناء واحد يعمل مع Postgres |
 
-### 2.1 الجداول الرئيسية
+لا تُضاف قواعد بيانات أخرى ولا طوابير ولا مخازن كائنات خارج هذا المكدس.
 
-```
-auth.ts
-├── users           (id, name, phone[unique], role, phone_verified_at)
-├── sessions        (id, user_id→users, token_hash[unique], expires_at)
-└── otp_codes       (id, phone, code_hash, purpose, expires_at, consumed_at)
+## 3. المكوّنات الرئيسية
 
-items.ts
-├── lost_items      (id, user_id→users, title, description, category,
-│                   status, lat, lng, secret_details, lost_at)
-├── found_items     (id, user_id→users, title, description, category,
-│                   status, lat, lng, secret_details, found_at)
-└── item_media      (id, lost_item_id?, found_item_id?, path, mime)
+الصفحات العامة `/home` و `/search` و `/about` و `/items/[type]/[id]` لا تحتاج جلسة. صفحات الدخول `/login` و `/register` و `/forgot-password` للزائر. لوحة المستخدم تحت `/dashboard` (البلاغات والمطابقات والمطالبات والاسترداد والإشعارات والملف) تمر على `requireUser`. لوحة الإدارة تحت `/admin` (المستخدمون والبلاغات ونقاط الأمانة والإعدادات والسجل) تمر على `requireAdmin`.
 
-matching.ts
-├── matches         (id, lost_item_id, found_item_id, score, status)
-├── claims          (id, match_id?, lost_item_id, found_item_id,
-│                   claimant_id→users, status, verification_notes)
-├── pickup_points   (id, name, address, lat, lng, is_active)
-└── recoveries      (id, claim_id[unique], pickup_point_id?,
-                    status, scheduled_at, completed_at,
-                    owner_confirmed_at, finder_confirmed_at)
+منطق الأعمال في `src/lib`. `auth.ts` يضبط Better Auth والجلسة والدوال `getSession` و `requireUser` و `requireAdmin`. `matching.ts` يحسب الدرجة ويشغّل المحرك ويكتب صفوف `matches`. `normalize.ts` يطبّع العربية ويقارن إثبات الملكية. `notify.ts` يدرج صفوفاً في `notifications`. `mail.ts` يرسل رمز OTP. `settings.ts` يقرأ إعدادات المنصة ويحدّثها. `media.ts` و `upload-store.ts` يرفعان الصور ويربطانها بالبلاغ. `audit.ts` يكتب سجل التدقيق. `map.ts` يمرّر مفتاح الخريطة ويضبط طلب البلاط.
 
-system.ts
-├── notifications   (id, user_id→users, type, title, body, read_at)
-├── audit_logs      (id, actor_id→users?, action, entity_type, entity_id, meta)
-└── settings        (key[pk], value, updated_at)
-```
+مسارات HTTP تحت `src/app/api` تغطي البلاغات والوسائط والمطابقات والمطالبات والاسترداد والإشعارات ونقاط الأمانة. المصادقة تمر عبر `/api/auth/[...all]` و `/api/auth/send-otp`.
 
-### 2.2 انتقالات الحالة
+## 4. قاعدة البيانات
 
-```
-item_status:   open → matched → claimed → recovered
-                                        → closed (manual)
+المخطط في `src/db/schema`. ملفات الترحيل في `drizzle/` وتُطبَّق عند إقلاع الخادم.
 
-match_status:  suggested → accepted
-                         → rejected
-                         → expired
+`auth.ts` فيه المستخدمون (بريد فريد، هاتف اختياري، دور user أو admin) والجلسات والحسابات ورموز التحقق. `items.ts` فيه بلاغات المفقود والموجود مع `secret_details` والإحداثيات، وصور `item_media` المرتبطة ببلاغ واحد. `matching.ts` فيه أزواج المطابقة والدرجة وتأكيد الطرفين، والمطالبات مع وصف الإثبات، ونقاط الأمانة، وسجل استرداد واحد لكل مطالبة مع رمز تسليم. `system.ts` فيه الإشعارات الداخلية وسجل التدقيق وإعدادات المنصة كمفتاح وقيمة JSON.
 
-claim_status:  pending → verified
-                       → rejected
-                       → cancelled
-
-recovery_status: scheduled → in_progress → completed
-                                          → cancelled
+```mermaid
+erDiagram
+  users ||--o{ sessions : يملك
+  users ||--o{ lost_items : ينشر
+  users ||--o{ found_items : ينشر
+  users ||--o{ claims : يطالب
+  users ||--o{ notifications : يستلم
+  lost_items ||--o{ item_media : صور
+  found_items ||--o{ item_media : صور
+  lost_items ||--o{ matches : يقابل
+  found_items ||--o{ matches : يقابل
+  matches ||--o{ claims : قد_تنتج
+  claims ||--|| recoveries : استرداد
+  pickup_points ||--o{ recoveries : موقع
 ```
 
----
+حالات كل كيان:
 
-## 3. محرك المطابقة الذكي (Smart Matching Engine)
-
-### 3.1 الخوارزمية
-
-**الملف:** `src/lib/matching.ts`
-
-```typescript
-// المعادلة الأساسية
-score = (categoryScore * 0.40)
-      + (tokenOverlapScore * 0.35)
-      + (geoScore * 0.25)
-
-// categoryScore:   1.0 إذا تطابق category، وإلا 0.0
-// tokenOverlapScore: Jaccard similarity على tokens العنوان والوصف
-// geoScore:        1 - min(distance_km / MAX_RADIUS_KM, 1)
-//                  MAX_RADIUS_KM = 50 (قابل للضبط من settings)
+```mermaid
+stateDiagram-v2
+  [*] --> open
+  open --> matched
+  matched --> claimed
+  claimed --> recovered
+  open --> closed
+  matched --> closed
+  claimed --> closed
 ```
 
-### 3.2 تدفق التنفيذ
-
-```
-1. جلب كل lost_items حيث status = 'open'
-2. جلب كل found_items حيث status = 'open'
-3. لكل زوج (lost, found):
-   a. احسب score
-   b. إذا score >= THRESHOLD (0.30):
-      - INSERT INTO matches ON CONFLICT (lost_item_id, found_item_id)
-        DO UPDATE SET score = EXCLUDED.score
-4. سجّل في audit_logs
+```mermaid
+stateDiagram-v2
+  [*] --> suggested
+  suggested --> accepted
+  suggested --> rejected
+  suggested --> expired
 ```
 
-### 3.3 آلية التفعيل
-
-- **npm script:** `npm run match:run` → يستدعي `src/scripts/run-matching.ts`
-- **بدون queue** — تشغيل مباشر ضمن transaction.
-
----
-
-## 4. نظام التحقق العمياء (Blind Verification)
-
-```
-1. صاحب المفقود يضع secret_details (مثال: "رقم الوثيقة: 123456")
-2. عند اقتراح مطابقة، يُرسَل للمدّعي سؤال عام:
-   "ما هي التفاصيل التي تعرفها عن هذا الغرض؟"
-3. المدير يقارن الإجابة مع secret_details المخزَّن
-4. يُغلق الـ claim بـ verified أو rejected
-5. لا تُكشف secret_details قط في API responses العامة
+```mermaid
+stateDiagram-v2
+  [*] --> pending
+  pending --> verified
+  pending --> rejected
+  pending --> cancelled
 ```
 
-**قاعدة صارمة:** كل Route Handler يجلب `lost_items` أو `found_items` يجب أن يستخدم:
-```typescript
-// صحيح - يستبعد secret_details
-const { secretDetails: _, ...safeItem } = item;
-
-// أو بـ Drizzle:
-db.select({
-  id: lostItems.id,
-  title: lostItems.title,
-  // ... بدون secretDetails
-}).from(lostItems)
+```mermaid
+stateDiagram-v2
+  [*] --> scheduled
+  scheduled --> in_progress
+  in_progress --> deposited
+  deposited --> completed
+  scheduled --> cancelled
+  in_progress --> cancelled
+  deposited --> cancelled
 ```
 
----
+## 5. التدفقات التقنية
 
-## 5. شبكة نقاط الأمانة (Safe Drop-off Points)
+### 5.1 الدخول
 
-```
-pickup_points
-├── name: "مركز شرطة عتق"
-├── address: "شارع الجمهورية، عتق"
-├── lat / lng: الإحداثيات الدقيقة
-└── is_active: true/false
+```mermaid
+sequenceDiagram
+  actor U as المستخدم
+  participant API as الخادم
+  participant Mail as SMTP
+  participant PG as PostgreSQL
 
-recoveries
-├── claim_id → claims (one-to-one)
-├── pickup_point_id → pickup_points
-├── scheduled_at: موعد التسليم
-├── owner_confirmed_at: تأكيد الصاحب
-└── finder_confirmed_at: تأكيد الملتقِط
-```
-
----
-
-## 6. طبقة المصادقة والتفويض
-
-### 6.1 تدفق OTP
-
-```
-POST /api/auth/otp/request
-  → validate phone (Zod)
-  → generate 6-digit code
-  → hash code (SHA-256 + salt)
-  → INSERT otp_codes (phone, code_hash, purpose, expires_at=+10min)
-  → [إرسال SMS - placeholder في المرحلة الأولى]
-  → 200 OK
-
-POST /api/auth/otp/verify
-  → validate phone + code (Zod)
-  → SELECT otp_codes WHERE phone=? AND consumed_at IS NULL AND expires_at > now()
-  → verify hash
-  → UPDATE consumed_at = now()
-  → UPSERT users (phone)
-  → INSERT sessions (user_id, token_hash, expires_at=+30days)
-  → Set-Cookie: session=<raw_token>; HttpOnly; Secure; SameSite=Lax
-  → redirect to /dashboard
+  U->>API: يدخل البريد
+  API->>PG: هل الحساب موجود؟
+  API->>Mail: يرسل OTP
+  API->>PG: يحفظ الرمز مشفّراً لعشر دقائق
+  U->>API: يدخل الرمز
+  API->>PG: ينشئ الجلسة
+  API-->>U: cookie من نوع HttpOnly و Secure و SameSite
 ```
 
-### 6.2 Route Guards
+### 5.2 محرك المطابقة
 
-```typescript
-// src/lib/auth.ts
-export async function requireUser(cookies): Promise<User>
-export async function requireAdmin(cookies): Promise<User>
-// كلاهما يرمي redirect('/login') عند الفشل
+يُشغَّل الأمر `npm run match:run`، أو يعمل تلقائياً عند إنشاء بلاغ إن فُعّل ذلك في الإعدادات.
+
+الدرجة تساوي تشابه العنوان مضروباً في 0.40، زائد تشابه الوصف مضروباً في 0.15، زائد تطابق التصنيف مضروباً في 0.25، زائد القرب الجغرافي مضروباً في 0.20. تشابه النص Jaccard بعد تطبيع العربية. التصنيف واحد إن تطابق وإلا صفر. الموقع يُحسب بـ Haversine: واحد ناقص أصغر قيمة بين المسافة بالكيلومتر مقسومة على 50 وبين واحد.
+
+```mermaid
+flowchart LR
+  s["الدرجة"]
+  s -->|أقل من 0.35| drop[يُهمل]
+  s -->|من 0.35 إلى أقل من 0.60| store[يُحفظ بلا تنبيه]
+  s -->|0.60 فأكثر| notify[يُحفظ ويُنبَّه الطرفان]
 ```
 
----
+لا تُقارن بلاغات المستخدم مع نفسه. الأوزان والعتبات تُعدَّل من لوحة الإدارة.
 
-## 7. هيكل الملفات المقترح النهائي
+### 5.3 التحقق الأعمى
 
-```
-wasel/
-├── PROJECT_CONTEXT.md
-├── docs/
-│   ├── SRS.md
-│   ├── SAD.md
-│   └── UX-UI-SPEC.md
-├── src/
-│   ├── app/
-│   │   ├── (public)/
-│   │   │   ├── search/
-│   │   │   └── items/[id]/
-│   │   ├── (auth)/
-│   │   │   └── login/
-│   │   ├── (dashboard)/
-│   │   │   ├── lost/
-│   │   │   ├── found/
-│   │   │   ├── matches/
-│   │   │   └── claims/
-│   │   ├── admin/
-│   │   │   ├── users/
-│   │   │   ├── items/
-│   │   │   └── pickup-points/
-│   │   └── api/
-│   │       ├── auth/otp/request/
-│   │       ├── auth/otp/verify/
-│   │       ├── media/upload/
-│   │       └── match/run/
-│   ├── db/
-│   │   ├── index.ts
-│   │   └── schema/
-│   │       ├── auth.ts
-│   │       ├── items.ts
-│   │       ├── matching.ts
-│   │       ├── system.ts
-│   │       └── index.ts
-│   ├── lib/
-│   │   ├── auth.ts          ← OTP + sessions + guards
-│   │   ├── matching.ts      ← Smart Matching Engine
-│   │   ├── notify.ts        ← notify() helper
-│   │   └── env.ts           ← validated env vars
-│   └── components/          ← مكونات React المشتركة
-├── drizzle.config.ts
-├── docker-compose.yml
-└── package.json
-```
+صاحب البلاغ يخزّن `secret_details`. المطالب يكتب وصف إثبات. الخادم يحسب تداخل الكلمات ولا يعيد السر في أي واجهة عامة. النتيجة تُحفظ كملاحظة مراجعة، وتبقى المطالبة قيد المراجعة حتى القبول أو الرفض.
 
----
+### 5.4 التسليم
 
-## 8. قرارات المعمارة (Architecture Decision Records)
+بعد توثيق المطالبة يُنشأ سجل استرداد فيه نقطة الأمانة والموعد ورمز التسليم. إذا أكّد الطرفان انتقلت الحالة إلى مكتمل وأُغلق البلاغان كمُسترجَعين.
 
-| القرار | الخيار المُتخَّذ | السبب |
-|--------|----------------|-------|
-| ORM | Drizzle | Type-safe، خفيف، بدون runtime overhead |
-| Auth | OTP + PG Sessions | بسيط، لا حاجة لـ JWT أو OAuth في السياق المحلي |
-| Queue | لا queue | حجم البيانات صغير، تشغيل يدوي كافٍ |
-| Storage | Local disk | لا تكلفة cloud، مناسب للنطاق الجغرافي المحدد |
-| SMS | Placeholder | تكامل لاحق بعد استقرار النظام |
-| Monorepo | لا | فريق صغير، مونوليث أسرع |
+## 6. التكاملات الخارجية
+
+| التكامل | الاستخدام | ملاحظة |
+|---|---|---|
+| PostgreSQL | المصدر الوحيد للبيانات | Docker محلياً، ونفس المحرك في الإنتاج |
+| SMTP | إرسال OTP | عبر Nodemailer |
+| CARTO و MapLibre | خريطة الموقع | المفتاح يُمرَّر وقت الطلب، وحاوية الخريطة تُثبت LTR حتى لا ينعكس البلاط تحت الصفحة العربية |
+| نظام الملفات | صور البلاغات | المجلد `uploads/` داخل الحاوية، بلا مخزن سحابي |
+
+لا يوجد طابور رسائل ولا بوابة دفع ولا خدمة بحث منفصلة.
+
+## 7. قرارات معمارية
+
+| القرار | الاختيار | السبب |
+|---|---|---|
+| شكل النظام | مونوليث | فريق صغير ونطاق واحد |
+| المصادقة | بريد OTP وجلسات Postgres | أبسط من كلمات المرور هنا |
+| المطابقة | سكريبت أو إجراء خادم | حجم البيانات صغير ولا حاجة لطابور |
+| التخزين | قرص محلي | بلا تكلفة سحابية في هذه المرحلة |
+| ORM | Drizzle فقط | مخطط واحد بأنواع واضحة، بلا SQL خام وبلا Prisma |
+| الجوال | مؤجَّل | مسارات Next نفسها تُفتح لاحقاً كـ REST |
